@@ -3,17 +3,22 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
-// New 8-question personality test with visual options
+// New 7-question personality test with visual options
 const personalityQuestions = [
   {
     id: 1,
     question: "What type of outfits do you usually prefer?",
     options: [
-      { label: "Classic & Timeless", value: "classic", image: "/assets/classic-outfit.jpg" },
-      { label: "Trendy & Modern", value: "trendy", image: "/assets/trendy-outfit.jpg" },
-      { label: "Comfortable & Casual", value: "casual", image: "/assets/casual-outfit.jpg" },
-      { label: "Bold & Statement", value: "bold", image: "/assets/bold-outfit.jpg" },
-      { label: "Creative & Unique", value: "creative", image: "/assets/creative-outfit.jpg" }
+      { label: "Classic & Timeless", value: "classic", image: "" },
+      { label: "Trendy & Modern", value: "trendy", image: "" },
+      { label: "Comfortable & Casual", value: "casual", image: "" },
+      { label: "Bold & Statement", value: "bold", image: "" },
+      { label: "Creative & Unique", value: "creative", image: "" },
+      { label: "Sporty & Athletic", value: "sporty", image: "" },
+      { label: "Elegant & Sophisticated", value: "elegant", image: "" },
+      { label: "Bohemian & Free-spirited", value: "bohemian", image: "" },
+      { label: "Streetwear & Urban", value: "streetwear", image: "" },
+      { label: "Minimalist & Clean", value: "minimalist_style", image: "" }
     ],
     category: "outfit_preference"
   },
@@ -31,30 +36,18 @@ const personalityQuestions = [
   },
   {
     id: 3,
-    question: "How do you usually dress depending on the event?",
-    options: [
-      { label: "Always Formal & Polished", value: "formal", image: "/assets/formal-event.jpg" },
-      { label: "Smart Casual", value: "smart_casual", image: "/assets/smart-casual.jpg" },
-      { label: "Comfortable & Relaxed", value: "relaxed", image: "/assets/relaxed-event.jpg" },
-      { label: "Trendy & Fashion-Forward", value: "fashion_forward", image: "/assets/fashion-forward.jpg" },
-      { label: "Unique & Eye-Catching", value: "unique", image: "/assets/unique-event.jpg" }
-    ],
-    category: "event_dressing"
-  },
-  {
-    id: 4,
     question: "How much do you customize your outfits?",
     options: [
-      { label: "Rarely, stick to outfit as is", value: "minimalist", image: "/assets/minimalist-style.jpg" },
-      { label: "Small unique touches", value: "dreamer", image: "/assets/dreamer-style.jpg" },
-      { label: "Occasionally mix trends", value: "charmer", image: "/assets/charmer-style.jpg" },
-      { label: "Often add bold flair", value: "visionary", image: "/assets/visionary-style.jpg" },
-      { label: "Always dramatic & standout", value: "explorer", image: "/assets/explorer-style.jpg" }
+      { label: "Rarely", value: "minimalist", image: "" },
+      { label: "Small touches", value: "dreamer", image: "" },
+      { label: "Mix trends", value: "visionary", image: "" },
+      { label: "Bold flair", value: "charmer", image: "" },
+      { label: "DIY/Layered", value: "explorer", image: "" }
     ],
     category: "customization_level"
   },
   {
-    id: 5,
+    id: 4,
     question: "What type of accessories do you prefer?",
     options: [
       { label: "Minimal & Simple", value: "minimal", image: "/assets/minimal-accessories.jpg" },
@@ -66,31 +59,31 @@ const personalityQuestions = [
     category: "accessory_preference"
   },
   {
-    id: 6,
+    id: 5,
     question: "How often do you experiment with new looks?",
     options: [
-      { label: "Rarely, prefer consistency", value: "minimalist", image: "/assets/consistent-style.jpg" },
-      { label: "Sometimes, when inspired", value: "dreamer", image: "/assets/inspired-style.jpg" },
-      { label: "Regularly, with trends", value: "charmer", image: "/assets/trendy-experiments.jpg" },
-      { label: "Often, with bold changes", value: "visionary", image: "/assets/bold-experiments.jpg" },
-      { label: "Always, dramatic transformations", value: "explorer", image: "/assets/dramatic-experiments.jpg" }
+      { label: "Rarely", value: "minimalist", image: "/assets/consistent-style.jpg" },
+      { label: "Small touches", value: "dreamer", image: "/assets/inspired-style.jpg" },
+      { label: "Mix trends", value: "visionary", image: "/assets/trendy-experiments.jpg" },
+      { label: "Bold flair", value: "charmer", image: "/assets/bold-experiments.jpg" },
+      { label: "DIY/Layered", value: "explorer", image: "/assets/dramatic-experiments.jpg" }
     ],
     category: "experimentation_frequency"
   },
   {
-    id: 7,
+    id: 6,
     question: "Where do you get your fashion inspiration from?",
     options: [
-      { label: "Comfort & daily ease", value: "minimalist", image: "/assets/comfort-inspiration.jpg" },
-      { label: "Social media / trends", value: "visionary", image: "/assets/social-media-inspiration.jpg" },
-      { label: "Personal creativity / mood", value: "dreamer", image: "/assets/creative-inspiration.jpg" },
-      { label: "Professional / polished icons", value: "charmer", image: "/assets/professional-inspiration.jpg" },
-      { label: "Celebrities / show-stopping style", value: "explorer", image: "/assets/celebrity-inspiration.jpg" }
+      { label: "Feel-based style", value: "minimalist", image: "/assets/comfort-inspiration.jpg" },
+      { label: "Movies/Art/Pinterest", value: "dreamer", image: "/assets/creative-inspiration.jpg" },
+      { label: "Social media", value: "visionary", image: "/assets/social-media-inspiration.jpg" },
+      { label: "Celebrity style", value: "charmer", image: "/assets/celebrity-inspiration.jpg" },
+      { label: "Street/Travel", value: "explorer", image: "/assets/professional-inspiration.jpg" }
     ],
     category: "inspiration_source"
   },
   {
-    id: 8,
+    id: 7,
     question: "What fabrics or fits do you enjoy most?",
     options: [
       { label: "Soft & Comfortable", value: "comfortable", image: "/assets/soft-fabrics.jpg" },
@@ -104,7 +97,7 @@ const personalityQuestions = [
 ];
 
 // Personality category mapping
-function calculatePersonalityCategory(answers: string[]): string {
+function calculatePersonalityCategory(answers: (string | string[])[]): string {
   const categoryScores = {
     minimalist: 0,
     dreamer: 0,
@@ -114,8 +107,10 @@ function calculatePersonalityCategory(answers: string[]): string {
   };
 
   // Map answers to personality categories
-  answers.forEach(answer => {
-    switch(answer) {
+  answers.forEach(answerItem => {
+    const values = Array.isArray(answerItem) ? answerItem : (answerItem ? [answerItem] : []);
+    values.forEach(answer => {
+      switch(answer) {
       case 'minimalist':
         categoryScores.minimalist += 1;
         break;
@@ -137,6 +132,9 @@ function calculatePersonalityCategory(answers: string[]): string {
       case 'formal':
       case 'minimal':
       case 'comfortable':
+      case 'casual':
+      case 'sporty':
+      case 'minimalist_style':
         categoryScores.minimalist += 1;
         break;
       case 'creative':
@@ -144,12 +142,14 @@ function calculatePersonalityCategory(answers: string[]): string {
       case 'relaxed':
       case 'unique':
       case 'flowing':
+      case 'bohemian':
         categoryScores.dreamer += 1;
         break;
       case 'trendy':
       case 'smart_casual':
       case 'statement':
       case 'structured':
+      case 'elegant':
         categoryScores.charmer += 1;
         break;
       case 'bright':
@@ -160,9 +160,11 @@ function calculatePersonalityCategory(answers: string[]): string {
       case 'bold':
       case 'mixed':
       case 'unconventional':
+      case 'streetwear':
         categoryScores.explorer += 1;
         break;
-    }
+      }
+    });
   });
 
   // Find the category with the highest score
@@ -184,24 +186,87 @@ const PersonalityAnalysisWidget: React.FC<PersonalityAnalysisWidgetProps> = ({
   gender,
 }) => {
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<string[]>(
+  const [answers, setAnswers] = useState<(string | string[])[]>(
     Array(personalityQuestions.length).fill("")
   );
   const [showResult, setShowResult] = useState(false);
   const [personalityCategory, setPersonalityCategory] = useState("");
   const [showNext, setShowNext] = useState(false);
 
-  // Build a gender-specific image path for each question option
-  const getGenderFolder = (g?: 'male' | 'female' | '') => (g === 'male' ? 'male' : g === 'female' ? 'female' : 'neutral');
-  const getOptionImage = (questionId: number, value: string) => {
-    const folder = getGenderFolder(gender);
-    // Example path you should provide under public/:
-    // public/assets/personality/{male|female|neutral}/q{questionId}-{value}.jpg
-    return `/assets/personality/${folder}/q${questionId}-${value}.jpg`;
+  // Build image candidates from files placed under public/assets/personality/
+  // Supports names like: "Q1 F Charmer.jpg", "Q1 F Charmer (2).jpg", etc.
+  const toTitleCase = (v: string) => v.replace(/[_-]+/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()).trim();
+  // Map option value to the display name used in your filenames
+  // Special handling for Q1 where your images are named by personality categories (Charmer, Dreamer, etc.)
+  const mapQ1ValueToCategoryName = (value: string): string => {
+    switch (value) {
+      case 'classic':
+      case 'casual':
+      case 'minimalist_style':
+        return 'Minimalist';
+      case 'trendy':
+      case 'elegant':
+        return 'Charmer';
+      case 'bold':
+        return 'Visionary';
+      case 'creative':
+      case 'bohemian':
+        return 'Dreamer';
+      case 'sporty':
+      case 'streetwear':
+        return 'Explorer';
+      default:
+        return toTitleCase(value);
+    }
+  };
+  const normalizeForFilename = (value: string, questionId: number) => {
+    if (questionId === 1) return mapQ1ValueToCategoryName(value);
+    if (value === 'minimalist_style') return 'Minimalist';
+    return toTitleCase(value);
+  };
+  const getGenderLetter = (g?: 'male' | 'female' | '') => (g === 'male' ? 'M' : 'F');
+  const getOptionImageCandidates = (questionId: number, value: string): string[] => {
+    const base = '/assets/personality';
+    const name = normalizeForFilename(value, questionId);
+    const g = getGenderLetter(gender);
+    const folder = gender === 'male' ? 'male' : 'female';
+    return [
+      // Pattern 1: Your arranged folder files (recommended)
+      `${base}/${folder}/q${questionId}-${value}.jpg`,
+      `${base}/${folder}/q${questionId}-${value}-1.jpg`,
+      `${base}/${folder}/q${questionId}-${value}-2.jpg`,
+      // Pattern 2: Legacy "Q{num} {G} Name.jpg"
+      `${base}/Q${questionId} ${g} ${name}.jpg`,
+      `${base}/Q${questionId} ${g} ${name} (2).jpg`,
+    ];
   };
 
+  // Multi-select configuration: Q1 (id 1) up to 5; Q7 (id 7) up to 3
+  const getQuestionByStep = () => personalityQuestions[step];
+  const isMultiSelect = (questionId: number) => questionId === 1 || questionId === 7;
+  const getMaxSelections = (questionId: number) => (questionId === 1 ? 5 : questionId === 7 ? 3 : 1);
+
   const handleChange = (value: string) => {
-    setAnswers((a) => a.map((v, i) => (i === step ? value : v)));
+    const q = getQuestionByStep();
+    if (isMultiSelect(q.id)) {
+      setAnswers((prev) => {
+        const current = prev[step];
+        const currentArray = Array.isArray(current) ? current : current ? [current] : [];
+        const exists = currentArray.includes(value);
+        let nextArray = exists
+          ? currentArray.filter((v) => v !== value)
+          : [...currentArray, value];
+        const max = getMaxSelections(q.id);
+        if (nextArray.length > max) {
+          nextArray = nextArray.slice(1);
+        }
+        const next = [...prev];
+        next[step] = nextArray;
+        return next;
+      });
+    } else {
+      setAnswers((a) => a.map((v, i) => (i === step ? value : v)));
+    }
   };
   
   const handleNext = () => {
@@ -251,36 +316,52 @@ const PersonalityAnalysisWidget: React.FC<PersonalityAnalysisWidgetProps> = ({
                 </h2>
               </div>
 
-              {/* Visual Options Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+              {/* Visual Options Grid - Adjust columns based on question */}
+              <div className={`grid grid-cols-1 gap-4 mb-8 ${
+                personalityQuestions[step].id === 1 
+                  ? 'md:grid-cols-2 lg:grid-cols-5' // 10 options for Q1
+                  : 'md:grid-cols-2 lg:grid-cols-3' // Default 3 columns
+              }`}>
                 {personalityQuestions[step].options.map((option) => (
                   <label
                     key={option.value}
                     className={`relative cursor-pointer group transition-all duration-300 ${
-                      answers[step] === option.value 
+                      (Array.isArray(answers[step])
+                        ? (answers[step] as string[]).includes(option.value)
+                        : answers[step] === option.value) 
                         ? 'ring-2 ring-indigo-500 bg-indigo-500/20' 
                         : 'hover:bg-white/5'
                     }`}
                   >
                     <input
-                      type="radio"
+                      type={isMultiSelect(personalityQuestions[step].id) ? 'checkbox' : 'radio'}
                       name={`q${step}`}
                       value={option.value}
-                      checked={answers[step] === option.value}
+                      checked={Array.isArray(answers[step]) ? (answers[step] as string[]).includes(option.value) : answers[step] === option.value}
                       onChange={() => handleChange(option.value)}
                       className="sr-only"
                     />
                     <div className="p-4 rounded-xl border border-white/20 h-full">
-                      {/* Gender-specific image derived from question and option */}
-                      <div className="relative w-full h-32 rounded-lg mb-3 overflow-hidden bg-gray-700">
-                        <Image
-                          src={getOptionImage(personalityQuestions[step].id, option.value)}
-                          alt={option.label}
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          priority={false}
-                        />
+                      {/* Render all matching images under public/assets/personality/ */}
+                      <div className={`w-full rounded-lg mb-3 overflow-hidden bg-gray-700 ${
+                        getOptionImageCandidates(personalityQuestions[step].id, option.value).length > 1 ? 'flex gap-1' : ''
+                      }`}>
+                        {getOptionImageCandidates(personalityQuestions[step].id, option.value).map((src) => (
+                          <div key={src} className={getOptionImageCandidates(personalityQuestions[step].id, option.value).length > 1 ? 'relative w-1/2 h-32' : 'relative w-full h-32'}>
+                            <Image
+                              src={src}
+                              alt={option.label}
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                              priority={false}
+                              onError={(e) => {
+                                const parent = (e.target as HTMLElement).parentElement as HTMLElement | null;
+                                if (parent) parent.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        ))}
                       </div>
                       <div className="text-center">
                         <span className="text-sm font-medium">{option.label}</span>
@@ -302,7 +383,13 @@ const PersonalityAnalysisWidget: React.FC<PersonalityAnalysisWidgetProps> = ({
                 <button
                   className="px-6 py-3 bg-indigo-600 rounded-xl text-lg font-semibold hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={handleNext}
-                  disabled={!answers[step]}
+                  disabled={(() => {
+                    const ans = answers[step];
+                    if (isMultiSelect(personalityQuestions[step].id)) {
+                      return !Array.isArray(ans) || ans.length === 0;
+                    }
+                    return !ans;
+                  })()}
                 >
                   {step === personalityQuestions.length - 1 ? "Finish" : "Next"}
                 </button>

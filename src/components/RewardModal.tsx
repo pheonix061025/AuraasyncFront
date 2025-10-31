@@ -237,6 +237,24 @@ export function RewardModal({ onClose, userData, onPointsUpdate }: RewardModalPr
         
         // Reload tasks to update canClaim status
         loadTasksData()
+        
+        // Play coin sound when claim button is clicked
+        if (typeof window !== 'undefined') {
+          try {
+            const audio = new Audio('/coin-prize.wav');
+            audio.volume = 0.5;
+            audio.play().catch(() => {
+              // Silently fail if audio can't play
+            });
+          } catch (error) {
+            console.error('Error playing coin sound:', error);
+          }
+          // Trigger coin-to-wallet animation from the claim button area
+          const btn = document.getElementById('wallet-anchor');
+          const start = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+          const event = new CustomEvent('coin:to-wallet', { detail: { count: 10, start } });
+          window.dispatchEvent(event);
+        }
       } else {
         alert('Failed to save points. Please try again.')
       }

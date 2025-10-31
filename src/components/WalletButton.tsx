@@ -99,6 +99,7 @@ export default function WalletButton() {
       <button
         onClick={() => setIsOpen(true)}
         className="fixed top-4 right-4 z-40 bg-white/10 backdrop-blur-lg rounded-full p-3 hover:bg-white/20 transition-all border border-white/20 shadow-lg hover:scale-110"
+        id="wallet-anchor"
         title="Wallet"
       >
         <Wallet className="w-6 h-6 text-white" />

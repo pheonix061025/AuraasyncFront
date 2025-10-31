@@ -3211,6 +3211,11 @@ export default function Onboarding() {
         reviewPopup.showAfterAnalysis();
       }, 1000);
 
+      // Trigger coin-to-wallet animation (from screen center to wallet)
+      if (typeof window !== 'undefined') {
+        const event = new CustomEvent('coin:to-wallet', { detail: { count: 10 } });
+        window.dispatchEvent(event);
+      }
       setCurrentStep(STEPS.COMPLETE);
     };
 

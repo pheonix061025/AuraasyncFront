@@ -168,19 +168,6 @@ export class PointsManager {
       points: newPoints
     };
 
-    // Play coin sound when points are earned
-    if (typeof window !== 'undefined') {
-      try {
-        const audio = new Audio('/coin-prize.wav');
-        audio.volume = 0.5;
-        audio.play().catch(() => {
-          // Silently fail if audio can't play
-        });
-      } catch (error) {
-        console.error('Error playing coin sound:', error);
-      }
-    }
-
     return { userData: updatedUserData, transaction };
   }
 
