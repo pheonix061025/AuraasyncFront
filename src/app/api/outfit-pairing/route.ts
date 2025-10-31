@@ -42,62 +42,29 @@ function validateImage(base64: string, mimeType: string): { valid: boolean; erro
   return { valid: true };
 }
 
-// Compress image for outfit analysis
+// Compress image for outfit analysis (server-side safe)
+// Note: For server-side, we'll skip compression or use sharp if available
+// For now, we'll validate size and use original if within limits
 async function compressImage(base64: string, mimeType: string, maxSizeKB: number = 100): Promise<string> {
   try {
-    // Convert base64 to blob
-    const byteCharacters = atob(base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: mimeType });
+    // Calculate approximate size
+    const sizeInBytes = (base64.length * 3) / 4;
+    const sizeInKB = sizeInBytes / 1024;
     
-    // Check if already small enough
-    if (blob.size <= maxSizeKB * 1024) {
+    // If already small enough, return as-is
+    if (sizeInKB <= maxSizeKB) {
       return base64;
     }
     
-    // Create canvas for compression
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return base64;
+    // For larger images, we'll truncate base64 if needed or skip compression
+    // In production, consider using sharp for server-side image processing
+    console.warn(`Image size (${sizeInKB.toFixed(2)}KB) exceeds limit (${maxSizeKB}KB). Using original.`);
     
-    const img = new Image();
-    await new Promise((resolve, reject) => {
-      img.onload = resolve;
-      img.onerror = reject;
-      img.src = `data:${mimeType};base64,${base64}`;
-    });
-    
-    // Calculate new dimensions for outfit analysis
-    const maxDimension = 400;
-    let { width, height } = img;
-    if (width > height) {
-      if (width > maxDimension) {
-        height = (height * maxDimension) / width;
-        width = maxDimension;
-      }
-    } else {
-      if (height > maxDimension) {
-        width = (width * maxDimension) / height;
-        height = maxDimension;
-      }
-    }
-    
-    canvas.width = width;
-    canvas.height = height;
-    ctx.drawImage(img, 0, 0, width, height);
-    
-    // Convert back to base64 with compression
-    const quality = 0.8;
-    const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-    const compressedBase64 = compressedDataUrl.split(',')[1];
-    
-    return compressedBase64;
+    // Return original if compression not available on server
+    // Note: Client-side compression should happen before sending to API
+    return base64;
   } catch (error) {
-    console.warn('Image compression failed, using original:', error);
+    console.warn('Image compression check failed, using original:', error);
     return base64;
   }
 }

@@ -38,57 +38,29 @@ function validateImage(base64: string, mimeType: string): { valid: boolean; erro
   return { valid: true };
 }
 
-// Compress image for calendar generation
+// Compress image for calendar generation (server-side safe)
+// Note: For server-side, we'll skip compression or use sharp if available
+// For now, we'll validate size and use original if within limits
 async function compressImage(base64: string, mimeType: string, maxSizeKB: number = 80): Promise<string> {
   try {
-    const byteCharacters = atob(base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: mimeType });
+    // Calculate approximate size
+    const sizeInBytes = (base64.length * 3) / 4;
+    const sizeInKB = sizeInBytes / 1024;
     
-    if (blob.size <= maxSizeKB * 1024) {
+    // If already small enough, return as-is
+    if (sizeInKB <= maxSizeKB) {
       return base64;
     }
     
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return base64;
+    // For larger images, we'll truncate base64 if needed or skip compression
+    // In production, consider using sharp for server-side image processing
+    console.warn(`Image size (${sizeInKB.toFixed(2)}KB) exceeds limit (${maxSizeKB}KB). Using original.`);
     
-    const img = new Image();
-    await new Promise((resolve, reject) => {
-      img.onload = resolve;
-      img.onerror = reject;
-      img.src = `data:${mimeType};base64,${base64}`;
-    });
-    
-    const maxDimension = 300;
-    let { width, height } = img;
-    if (width > height) {
-      if (width > maxDimension) {
-        height = (height * maxDimension) / width;
-        width = maxDimension;
-      }
-    } else {
-      if (height > maxDimension) {
-        width = (width * maxDimension) / height;
-        height = maxDimension;
-      }
-    }
-    
-    canvas.width = width;
-    canvas.height = height;
-    ctx.drawImage(img, 0, 0, width, height);
-    
-    const quality = 0.7;
-    const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-    const compressedBase64 = compressedDataUrl.split(',')[1];
-    
-    return compressedBase64;
+    // Return original if compression not available on server
+    // Note: Client-side compression should happen before sending to API
+    return base64;
   } catch (error) {
-    console.warn('Image compression failed, using original:', error);
+    console.warn('Image compression check failed, using original:', error);
     return base64;
   }
 }
@@ -310,7 +282,42 @@ export async function POST(req: Request) {
         temperature: 0.8,
         topK: 40,
         topP: 0.95,
-        responseMimeType: "application/json"
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            calendar: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  date: { type: "string" },
+                  dayName: { type: "string" },
+                  outfit: {
+                    type: "object",
+                    properties: {
+                      topwear: { type: "string" },
+                      bottomwear: { type: "string" },
+                      accessories: {
+                        type: "array",
+                        items: { type: "string" }
+                      },
+                      description: { type: "string" },
+                      occasion: { type: "string" },
+                      styling_tips: {
+                        type: "array",
+                        items: { type: "string" }
+                      }
+                    },
+                    required: ["topwear", "bottomwear", "accessories", "description", "occasion", "styling_tips"]
+                  }
+                },
+                required: ["date", "dayName", "outfit"]
+              }
+            }
+          },
+          required: ["calendar"]
+        }
       }
     });
 

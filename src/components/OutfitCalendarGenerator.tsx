@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Calendar, ArrowLeft, Download, Share2, CheckCircle, Clock } from 'lucide-react';
 
 interface CalendarDay {
@@ -27,6 +27,7 @@ interface OutfitCalendarGeneratorProps {
   onBack: () => void;
   userPoints: number;
   onPointsUpdate: (newPoints: number) => void;
+  alreadyPaid?: boolean;
 }
 
 export default function OutfitCalendarGenerator({
@@ -34,21 +35,16 @@ export default function OutfitCalendarGenerator({
   bottomwears,
   onBack,
   userPoints,
-  onPointsUpdate
+  onPointsUpdate,
+  alreadyPaid = false
 }: OutfitCalendarGeneratorProps) {
   const [calendar, setCalendar] = useState<CalendarDay[]>([]);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  // Check if user has enough points for calendar (500 coins)
-  const canGenerateCalendar = userPoints >= 500;
-
-  useEffect(() => {
-    if (canGenerateCalendar) {
-      generateCalendar();
-    }
-  }, [canGenerateCalendar]);
+  // Check if user has access: either already paid in this flow or has enough points
+  const canGenerateCalendar = alreadyPaid || userPoints >= 500;
 
   const generateCalendar = async () => {
     if (!canGenerateCalendar) {
@@ -91,23 +87,23 @@ export default function OutfitCalendarGenerator({
       const data = await response.json();
       setCalendar(data.calendar);
 
-      // Deduct points
-      const newPoints = userPoints - 500;
-      onPointsUpdate(newPoints);
-
-      // Update points in Supabase
-      try {
-        await fetch('/api/points', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'calendar_generation',
-            points: -500,
-            description: 'Generated 10-day outfit calendar'
-          })
-        });
-      } catch (error) {
-        console.error('Failed to update points:', error);
+      // Only deduct if not paid already in this flow
+      if (!alreadyPaid) {
+        const newPoints = userPoints - 500;
+        onPointsUpdate(newPoints);
+        try {
+          await fetch('/api/points', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'calendar_generation',
+              points: -500,
+              description: 'Generated 10-day outfit calendar'
+            })
+          });
+        } catch (error) {
+          console.error('Failed to update points:', error);
+        }
       }
 
     } catch (error) {
@@ -182,20 +178,20 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
 
   if (!canGenerateCalendar) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center p-8">
+      <div className="min-h-screen bg-[#251F1E] flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center p-8 bg-white/10 border border-white/15 rounded-2xl backdrop-blur-md">
           <div className="text-6xl mb-6">📅</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Calendar Access Required</h2>
-          <p className="text-gray-600 mb-6">
+          <h2 className="text-2xl font-bold text-white mb-4">Calendar Access Required</h2>
+          <p className="text-gray-300 mb-6">
             You need 500 coins to unlock the 10-day outfit calendar feature.
           </p>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <div className="text-yellow-800 font-medium">Current Balance: {userPoints} coins</div>
-            <div className="text-yellow-700 text-sm">Required: 500 coins</div>
+          <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-lg p-4 mb-6">
+            <div className="text-yellow-200 font-medium">Current Balance: {userPoints} coins</div>
+            <div className="text-yellow-200/80 text-sm">Required: 500 coins</div>
           </div>
           <button
             onClick={onBack}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors"
           >
             Go Back
           </button>
@@ -206,14 +202,14 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
 
   if (generating) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#251F1E] flex items-center justify-center">
         <div className="max-w-md mx-auto text-center p-8">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-6"></div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Generating Your Calendar</h2>
-          <p className="text-gray-600 mb-6">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-400 mx-auto mb-6"></div>
+          <h2 className="text-2xl font-bold text-white mb-4">Generating Your Calendar</h2>
+          <p className="text-gray-300 mb-6">
             Our AI is creating your personalized 10-day outfit calendar...
           </p>
-          <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+          <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
             <Clock className="w-4 h-4" />
             This may take a few moments
           </div>
@@ -224,21 +220,21 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center p-8">
+      <div className="min-h-screen bg-[#251F1E] flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center p-8 bg-white/10 border border-white/15 rounded-2xl backdrop-blur-md">
           <div className="text-6xl mb-6">❌</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Generation Failed</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <h2 className="text-2xl font-bold text-white mb-4">Generation Failed</h2>
+          <p className="text-gray-300 mb-6">{error}</p>
           <div className="flex gap-4 justify-center">
             <button
               onClick={onBack}
-              className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-6 py-3 border border-white/20 text-white rounded-lg hover:bg-white/10 transition-colors"
             >
               Go Back
             </button>
             <button
               onClick={generateCalendar}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors"
             >
               Try Again
             </button>
@@ -249,34 +245,34 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#251F1E]">
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <button
               onClick={onBack}
-              className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+              className="p-2 hover:bg-white/10 text-white rounded-full transition-colors"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Your 10-Day Outfit Calendar</h1>
-              <p className="text-gray-600">Personalized styling plan for the next 10 days</p>
+              <h1 className="text-3xl font-bold text-white">Your 10-Day Outfit Calendar</h1>
+              <p className="text-gray-300">Personalized styling plan for the next 10 days</p>
             </div>
           </div>
           
           <div className="flex gap-3">
             <button
               onClick={downloadCalendar}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 border border-white/20 text-white rounded-lg hover:bg-white/10 transition-colors"
             >
               <Download className="w-4 h-4" />
               Download
             </button>
             <button
               onClick={shareCalendar}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 border border-white/20 text-white rounded-lg hover:bg-white/10 transition-colors"
             >
               <Share2 className="w-4 h-4" />
               Share
@@ -289,13 +285,13 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
           {calendar.map((day, index) => (
             <div
               key={day.date}
-              className={`bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer ${
-                selectedDate === day.date ? 'ring-2 ring-blue-500' : ''
+              className={`bg-white/10 border border-white/15 rounded-xl overflow-hidden hover:bg-white/15 transition-all duration-300 cursor-pointer ${
+                selectedDate === day.date ? 'ring-2 ring-purple-500' : ''
               }`}
               onClick={() => setSelectedDate(selectedDate === day.date ? null : day.date)}
             >
               {/* Date Header */}
-              <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white p-4">
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4">
                 <div className="text-sm font-medium">{day.dayName}</div>
                 <div className="text-lg font-bold">{new Date(day.date).getDate()}</div>
                 {day.weather && (
@@ -308,19 +304,19 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
 
               {/* Outfit Preview */}
               <div className="p-4">
-                <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg mb-3 flex items-center justify-center">
+                <div className="aspect-square bg-white/5 rounded-lg mb-3 flex items-center justify-center">
                   <div className="text-center">
                     <div className="text-3xl mb-1">👗</div>
-                    <div className="text-xs text-gray-600">Outfit</div>
+                    <div className="text-xs text-gray-300">Outfit</div>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-gray-900 text-sm line-clamp-2">
+                  <h3 className="font-semibold text-white text-sm line-clamp-2">
                     {day.outfit.description}
                   </h3>
                   
-                  <div className="text-xs text-gray-600">
+                  <div className="text-xs text-gray-300">
                     <div className="flex items-center gap-1 mb-1">
                       <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                       {day.outfit.topwear}
@@ -332,7 +328,7 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
                   </div>
 
                   <div className="flex items-center gap-1">
-                    <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                    <span className="px-2 py-1 bg-purple-500/20 text-purple-200 text-xs rounded-full">
                       {day.outfit.occasion}
                     </span>
                   </div>
@@ -352,12 +348,12 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
               return (
                 <div>
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">
+                    <h2 className="text-2xl font-bold text-white">
                       {day.dayName}, {new Date(day.date).toLocaleDateString()}
                     </h2>
                     <button
                       onClick={() => setSelectedDate(null)}
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      className="p-2 hover:bg-white/10 text-white rounded-full transition-colors"
                     >
                       ✕
                     </button>
@@ -366,32 +362,32 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Outfit Details */}
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Outfit Details</h3>
+                      <h3 className="text-lg font-semibold text-white mb-4">Outfit Details</h3>
                       <div className="space-y-4">
                         <div>
-                          <h4 className="font-medium text-gray-900 mb-2">Description</h4>
-                          <p className="text-gray-700">{day.outfit.description}</p>
+                          <h4 className="font-medium text-white mb-2">Description</h4>
+                          <p className="text-gray-300">{day.outfit.description}</p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <h4 className="font-medium text-gray-900 mb-2">Topwear</h4>
-                            <p className="text-gray-700">{day.outfit.topwear}</p>
+                            <h4 className="font-medium text-white mb-2">Topwear</h4>
+                            <p className="text-gray-300">{day.outfit.topwear}</p>
                           </div>
                           <div>
-                            <h4 className="font-medium text-gray-900 mb-2">Bottomwear</h4>
-                            <p className="text-gray-700">{day.outfit.bottomwear}</p>
+                            <h4 className="font-medium text-white mb-2">Bottomwear</h4>
+                            <p className="text-gray-300">{day.outfit.bottomwear}</p>
                           </div>
                         </div>
 
                         {day.outfit.accessories.length > 0 && (
                           <div>
-                            <h4 className="font-medium text-gray-900 mb-2">Accessories</h4>
+                            <h4 className="font-medium text-white mb-2">Accessories</h4>
                             <div className="flex flex-wrap gap-2">
                               {day.outfit.accessories.map((accessory, idx) => (
                                 <span
                                   key={idx}
-                                  className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+                                  className="px-3 py-1 bg-white/10 text-gray-200 text-sm rounded-full"
                                 >
                                   {accessory}
                                 </span>
@@ -401,8 +397,8 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
                         )}
 
                         <div>
-                          <h4 className="font-medium text-gray-900 mb-2">Occasion</h4>
-                          <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                          <h4 className="font-medium text-white mb-2">Occasion</h4>
+                          <span className="inline-block px-3 py-1 bg-purple-500/20 text-purple-200 text-sm rounded-full">
                             {day.outfit.occasion}
                           </span>
                         </div>
@@ -411,24 +407,24 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
 
                     {/* Styling Tips */}
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Styling Tips</h3>
+                      <h3 className="text-lg font-semibold text-white mb-4">Styling Tips</h3>
                       <div className="space-y-3">
                         {day.outfit.styling_tips.map((tip, idx) => (
                           <div key={idx} className="flex items-start gap-3">
-                            <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                            <p className="text-gray-700">{tip}</p>
+                            <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-gray-300">{tip}</p>
                           </div>
                         ))}
                       </div>
 
                       {day.weather && (
-                        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                          <h4 className="font-medium text-gray-900 mb-2">Weather</h4>
+                        <div className="mt-6 p-4 bg-white/10 rounded-lg">
+                          <h4 className="font-medium text-white mb-2">Weather</h4>
                           <div className="flex items-center gap-2">
                             <span className="text-2xl">{getWeatherIcon(day.weather.condition)}</span>
                             <div>
-                              <div className="font-medium">{day.weather.temperature}°C</div>
-                              <div className="text-sm text-gray-600">{day.weather.condition}</div>
+                              <div className="font-medium text-white">{day.weather.temperature}°C</div>
+                              <div className="text-sm text-gray-300">{day.weather.condition}</div>
                             </div>
                           </div>
                         </div>
@@ -445,11 +441,11 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
         {calendar.length === 0 && !generating && !error && (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📅</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No calendar generated</h3>
-            <p className="text-gray-600 mb-6">Something went wrong. Please try again.</p>
+            <h3 className="text-xl font-semibold text-white mb-2">No calendar generated</h3>
+            <p className="text-gray-300 mb-6">Something went wrong. Please try again.</p>
             <button
               onClick={generateCalendar}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors"
             >
               Generate Calendar
             </button>

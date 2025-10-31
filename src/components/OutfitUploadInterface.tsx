@@ -16,18 +16,40 @@ interface ClothingItem {
   category: 'topwear' | 'bottomwear';
 }
 
+interface OutfitPairing {
+  topwear: {
+    name: string;
+    color: string;
+    style: string;
+  };
+  bottomwear: {
+    name: string;
+    color: string;
+    style: string;
+  };
+  accessories: string[];
+  description: string;
+  confidence: number;
+  occasion: string;
+  styling_tips: string[];
+}
+
 interface OutfitUploadInterfaceProps {
   onItemsUploaded: (topwears: ClothingItem[], bottomwears: ClothingItem[]) => void;
+  onPairingsGenerated: (pairings: OutfitPairing[]) => void;
   onClose: () => void;
   userPoints: number;
   onPointsUpdate: (newPoints: number) => void;
+  hideGeneratePairingsButton?: boolean;
 }
 
 export default function OutfitUploadInterface({ 
   onItemsUploaded, 
+  onPairingsGenerated,
   onClose, 
   userPoints, 
-  onPointsUpdate 
+  onPointsUpdate,
+  hideGeneratePairingsButton = false
 }: OutfitUploadInterfaceProps) {
   const [topwears, setTopwears] = useState<ClothingItem[]>([]);
   const [bottomwears, setBottomwears] = useState<ClothingItem[]>([]);
@@ -239,7 +261,10 @@ export default function OutfitUploadInterface({
         }
       }
       
-      // Pass the pairings to parent component
+      // Pass the pairings and items to parent component
+      if (data.pairings && Array.isArray(data.pairings)) {
+        onPairingsGenerated(data.pairings);
+      }
       onItemsUploaded(topwears, bottomwears);
       
     } catch (error) {
@@ -248,13 +273,14 @@ export default function OutfitUploadInterface({
     } finally {
       setUploading(false);
     }
-  }, [topwears, bottomwears, userPoints, onPointsUpdate, onItemsUploaded]);
+  }, [topwears, bottomwears, userPoints, onPointsUpdate, onItemsUploaded, onPairingsGenerated]);
 
   const renderItemGrid = (items: ClothingItem[], category: 'topwear' | 'bottomwear') => (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold capitalize">
+        <h3 className={`text-lg font-semibold capitalize ${hideGeneratePairingsButton && items.length !== 5 ? 'text-orange-600' : ''}`}>
           {category}s ({items.length}/5)
+          {hideGeneratePairingsButton && items.length !== 5 && <span className="ml-2 text-sm text-orange-600">*Required</span>}
         </h3>
         <button
           onClick={() => {
@@ -320,43 +346,57 @@ export default function OutfitUploadInterface({
   );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+      <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">Upload Your Wardrobe</h2>
+            <h2 className="text-2xl font-bold text-white">
+              {hideGeneratePairingsButton ? 'Upload Your Wardrobe for Calendar' : 'Upload Your Wardrobe'}
+            </h2>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 hover:bg-white/10 rounded-full transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
           </div>
           
-          <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+          <div className={`mb-6 p-4 ${hideGeneratePairingsButton ? 'bg-purple-500/10' : 'bg-blue-500/10'} border ${hideGeneratePairingsButton ? 'border-purple-400/30' : 'border-blue-400/30'} rounded-lg`}> 
             <div className="flex items-center gap-2 mb-2">
-              <Camera className="w-5 h-5 text-blue-500" />
-              <h3 className="font-semibold text-blue-900">How it works</h3>
+              <Camera className={`w-5 h-5 ${hideGeneratePairingsButton ? 'text-purple-300' : 'text-blue-300'}`} />
+              <h3 className={`font-semibold ${hideGeneratePairingsButton ? 'text-purple-200' : 'text-blue-200'}`}>How it works</h3>
             </div>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Upload up to 5 topwears and 5 bottomwears</li>
-              <li>• Add details like color and style for better suggestions</li>
-              <li>• Get AI-powered outfit combinations</li>
-              <li>• First time is free! After that, 100 coins per session</li>
+            <ul className={`text-sm space-y-1 ${hideGeneratePairingsButton ? 'text-purple-100' : 'text-blue-100'}`}>
+              {hideGeneratePairingsButton ? (
+                <>
+                  <li>• Upload exactly 5 topwears and 5 bottomwears</li>
+                  <li>• Add details like color and style for better suggestions</li>
+                  <li>• Gemini AI will analyze your wardrobe</li>
+                  <li>• Get a personalized 10-day outfit calendar</li>
+                  <li>• 500 coins already deducted</li>
+                </>
+              ) : (
+                <>
+                  <li>• Upload up to 5 topwears and 5 bottomwears</li>
+                  <li>• Add details like color and style for better suggestions</li>
+                  <li>• Get AI-powered outfit combinations</li>
+                  <li>• First time is free! After that, 100 coins per session</li>
+                </>
+              )}
             </ul>
           </div>
           
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-500" />
-              <span className="text-red-700">{error}</span>
+            <div className="mb-4 p-4 bg-red-500/10 border border-red-400/30 rounded-lg flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-300" />
+              <span className="text-red-200">{error}</span>
             </div>
           )}
           
           {success && (
-            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-              <Check className="w-5 h-5 text-green-500" />
-              <span className="text-green-700">Images uploaded successfully!</span>
+            <div className="mb-4 p-4 bg-green-500/10 border border-green-400/30 rounded-lg flex items-center gap-2">
+              <Check className="w-5 h-5 text-green-300" />
+              <span className="text-green-200">Images uploaded successfully!</span>
             </div>
           )}
           
@@ -368,12 +408,12 @@ export default function OutfitUploadInterface({
           {uploading && (
             <div className="mt-6">
               <div className="flex items-center gap-2 mb-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                <span className="text-sm text-gray-600">Processing images...</span>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
+                <span className="text-sm text-gray-300">Processing images...</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-white/10 rounded-full h-2">
                 <div 
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 ></div>
               </div>
@@ -383,17 +423,33 @@ export default function OutfitUploadInterface({
           <div className="flex justify-end gap-4 mt-8">
             <button
               onClick={onClose}
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-6 py-2 border border-white/20 text-white rounded-lg hover:bg-white/10 transition-colors"
             >
               Cancel
             </button>
-            <button
-              onClick={handleGeneratePairings}
-              disabled={uploading || topwears.length === 0 || bottomwears.length === 0}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {uploading ? 'Generating...' : 'Generate Outfit Pairings'}
-            </button>
+            {!hideGeneratePairingsButton ? (
+              <button
+                onClick={handleGeneratePairings}
+                disabled={uploading || topwears.length === 0 || bottomwears.length === 0}
+                className="px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {uploading ? 'Generating...' : 'Generate Outfit Pairings'}
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  if (topwears.length !== 5 || bottomwears.length !== 5) {
+                    setError('Please upload exactly 5 topwears and 5 bottomwears to generate calendar');
+                    return;
+                  }
+                  onItemsUploaded(topwears, bottomwears);
+                }}
+                disabled={uploading || topwears.length !== 5 || bottomwears.length !== 5}
+                className="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {uploading ? 'Processing...' : 'Generate Calendar'}
+              </button>
+            )}
           </div>
         </div>
         

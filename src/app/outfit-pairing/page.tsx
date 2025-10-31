@@ -31,6 +31,7 @@ export default function OutfitPairingPage() {
   const [topwears, setTopwears] = useState<any[]>([]);
   const [bottomwears, setBottomwears] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCalendarFlow, setIsCalendarFlow] = useState(false);
 
   // Check if user has used free pairing
   const [hasUsedFreePairing, setHasUsedFreePairing] = useState(false);
@@ -72,7 +73,7 @@ export default function OutfitPairingPage() {
   const handleItemsUploaded = (uploadedTopwears: any[], uploadedBottomwears: any[]) => {
     setTopwears(uploadedTopwears);
     setBottomwears(uploadedBottomwears);
-    setCurrentView('results');
+    setCurrentView(isCalendarFlow ? 'calendar' : 'results');
   };
 
   const handlePairingsGenerated = (generatedPairings: OutfitPairing[]) => {
@@ -102,9 +103,11 @@ export default function OutfitPairingPage() {
     return (
       <OutfitUploadInterface
         onItemsUploaded={handleItemsUploaded}
+        onPairingsGenerated={handlePairingsGenerated}
         onClose={() => setCurrentView('main')}
         userPoints={userPoints}
         onPointsUpdate={handlePointsUpdate}
+        hideGeneratePairingsButton={isCalendarFlow}
       />
     );
   }
@@ -131,6 +134,7 @@ export default function OutfitPairingPage() {
         onBack={() => setCurrentView('results')}
         userPoints={userPoints}
         onPointsUpdate={handlePointsUpdate}
+        alreadyPaid={isCalendarFlow}
       />
     );
   }
@@ -247,7 +251,27 @@ export default function OutfitPairingPage() {
             </div>
 
             <button
-              onClick={() => setCurrentView('upload')}
+              onClick={async () => {
+                if (!canGenerateCalendar) return;
+                // Deduct 500 coins upfront and open upload flow for calendar
+                const newPoints = userPoints - 500;
+                setIsCalendarFlow(true);
+                handlePointsUpdate(newPoints);
+                try {
+                  await fetch('/api/points', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      action: 'calendar_access',
+                      points: -500,
+                      description: 'Unlocked 10-day outfit calendar'
+                    })
+                  });
+                } catch (e) {
+                  console.error('Failed to log calendar purchase');
+                }
+                setCurrentView('upload');
+              }}
               disabled={!canGenerateCalendar}
               className={`w-full py-4 px-6 rounded-xl font-semibold text-white transition-all duration-200 ${
                 canGenerateCalendar
