@@ -247,6 +247,7 @@ export async function POST(req: Request) {
       "- Rotate through all available items",
       "- Provide practical styling tips",
       "- Consider seasonal appropriateness",
+      "- In the topwear and bottomwear fields, include the item number (e.g., '1', '2') or the item name/description that matches the numbered list above",
       "",
       "Return JSON with calendar in this format:",
       "{\"calendar\": [{\"date\": \"YYYY-MM-DD\", \"dayName\": \"Day\", \"outfit\": {\"topwear\": \"\", \"bottomwear\": \"\", \"accessories\": [\"\"], \"description\": \"\", \"occasion\": \"\", \"styling_tips\": [\"\"]}}]}"
@@ -322,6 +323,17 @@ export async function POST(req: Request) {
     });
 
     const text = result.response.text();
+    
+    // Track token usage for monitoring
+    const usage = result.response.usageMetadata;
+    const totalTokens = usage?.totalTokenCount || 0;
+    console.log("/api/outfit-calendar usage:", {
+      promptTokens: usage?.promptTokenCount || 0,
+      completionTokens: usage?.candidatesTokenCount || 0,
+      totalTokens,
+      model: "gemini-2.5-flash"
+    });
+    
     const parsed = safeJsonParse<any>(text);
 
     if (!parsed || !parsed.calendar || !Array.isArray(parsed.calendar)) {

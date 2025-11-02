@@ -166,14 +166,60 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
     }
   };
 
-  const getWeatherIcon = (condition: string) => {
-    const conditions = condition.toLowerCase();
-    if (conditions.includes('sunny') || conditions.includes('clear')) return '☀️';
-    if (conditions.includes('cloudy') || conditions.includes('overcast')) return '☁️';
-    if (conditions.includes('rain') || conditions.includes('drizzle')) return '🌧️';
-    if (conditions.includes('snow')) return '❄️';
-    if (conditions.includes('wind')) return '💨';
-    return '🌤️';
+  // Helper function to remove number prefixes from item names
+  const removeNumberPrefix = (text: string): string => {
+    if (!text) return text;
+    // Remove patterns like "5 - ", "1. ", "2 -", etc.
+    return text.replace(/^\d+\s*[.-]\s*/, '').trim();
+  };
+
+  // Helper function to find matching item by name/description
+  const findMatchingItem = (description: string, items: any[]) => {
+    if (!description || !items || items.length === 0) return null;
+    
+    // Try to extract item number from description (e.g., "1", "Item 1", "#1")
+    const numberMatch = description.match(/\b(\d+)\b/);
+    if (numberMatch) {
+      const itemIndex = parseInt(numberMatch[1]) - 1; // Convert to 0-based index
+      if (itemIndex >= 0 && itemIndex < items.length) {
+        return items[itemIndex];
+      }
+    }
+    
+    // Try exact match first
+    const exactMatch = items.find(item => 
+      item.name?.toLowerCase() === description.toLowerCase() ||
+      description.toLowerCase().includes(item.name?.toLowerCase() || '')
+    );
+    if (exactMatch) return exactMatch;
+    
+    // Try matching by color
+    const colorMatch = items.find(item => 
+      item.color && description.toLowerCase().includes(item.color.toLowerCase())
+    );
+    if (colorMatch) return colorMatch;
+    
+    // Try matching by style
+    const styleMatch = items.find(item => 
+      item.style && description.toLowerCase().includes(item.style.toLowerCase())
+    );
+    if (styleMatch) return styleMatch;
+    
+    // If no match, return first item as fallback
+    return items[0] || null;
+  };
+  
+  // Get images for a specific day's outfit
+  const getOutfitImages = (day: CalendarDay) => {
+    const topwearItem = findMatchingItem(day.outfit.topwear, topwears);
+    const bottomwearItem = findMatchingItem(day.outfit.bottomwear, bottomwears);
+    
+    return {
+      topwearImage: topwearItem?.image || null,
+      bottomwearImage: bottomwearItem?.image || null,
+      topwearItem: topwearItem,
+      bottomwearItem: bottomwearItem
+    };
   };
 
   if (!canGenerateCalendar) {
@@ -280,6 +326,81 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
           </div>
         </div>
 
+        {/* All Uploaded Wardrobe Items Section */}
+        <div className="mb-8 bg-white/5 rounded-xl p-6 border border-white/10">
+          <h2 className="text-xl font-bold text-white mb-4">Your Complete Wardrobe</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Topwears Section */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                <span>👕</span>
+                Topwears ({topwears.length})
+              </h3>
+              <div className="grid grid-cols-3 gap-3">
+                {topwears.map((item, index) => (
+                  <div key={item.id || index} className="relative group">
+                    <div className="aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10">
+                      <img
+                        src={item.image}
+                        alt={item.name || `Topwear ${index + 1}`}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    </div>
+                    <div className="mt-2 text-center">
+                      <p className="text-xs text-gray-300 truncate">{item.name || `Item ${index + 1}`}</p>
+                      {(item.color || item.style) && (
+                        <p className="text-xs text-gray-400 truncate">
+                          {item.color && item.style ? `${item.color} • ${item.style}` : item.color || item.style}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {topwears.length === 0 && (
+                  <div className="col-span-3 text-center py-8 text-gray-400">
+                    <p>No topwears uploaded</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bottomwears Section */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                <span>👖</span>
+                Bottomwears ({bottomwears.length})
+              </h3>
+              <div className="grid grid-cols-3 gap-3">
+                {bottomwears.map((item, index) => (
+                  <div key={item.id || index} className="relative group">
+                    <div className="aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10">
+                      <img
+                        src={item.image}
+                        alt={item.name || `Bottomwear ${index + 1}`}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    </div>
+                    <div className="mt-2 text-center">
+                      <p className="text-xs text-gray-300 truncate">{item.name || `Item ${index + 1}`}</p>
+                      {(item.color || item.style) && (
+                        <p className="text-xs text-gray-400 truncate">
+                          {item.color && item.style ? `${item.color} • ${item.style}` : item.color || item.style}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {bottomwears.length === 0 && (
+                  <div className="col-span-3 text-center py-8 text-gray-400">
+                    <p>No bottomwears uploaded</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Calendar Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           {calendar.map((day, index) => (
@@ -294,44 +415,80 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
               <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4">
                 <div className="text-sm font-medium">{day.dayName}</div>
                 <div className="text-lg font-bold">{new Date(day.date).getDate()}</div>
-                {day.weather && (
-                  <div className="flex items-center gap-1 mt-2 text-sm">
-                    <span>{getWeatherIcon(day.weather.condition)}</span>
-                    <span>{day.weather.temperature}°C</span>
-                  </div>
-                )}
               </div>
 
-              {/* Outfit Preview */}
+              {/* Outfit Preview with Actual Images */}
               <div className="p-4">
-                <div className="aspect-square bg-white/5 rounded-lg mb-3 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-3xl mb-1">👗</div>
-                    <div className="text-xs text-gray-300">Outfit</div>
-                  </div>
-                </div>
+                {(() => {
+                  const { topwearImage, bottomwearImage } = getOutfitImages(day);
+                  return (
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      {/* Topwear Image */}
+                      <div className="aspect-square bg-white/5 rounded-lg overflow-hidden">
+                        {topwearImage ? (
+                          <img
+                            src={topwearImage}
+                            alt={day.outfit.topwear}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="text-2xl mb-1">👕</div>
+                              <div className="text-xs text-gray-300">Top</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Bottomwear Image */}
+                      <div className="aspect-square bg-white/5 rounded-lg overflow-hidden">
+                        {bottomwearImage ? (
+                          <img
+                            src={bottomwearImage}
+                            alt={day.outfit.bottomwear}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="text-2xl mb-1">👖</div>
+                              <div className="text-xs text-gray-300">Bottom</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-white text-sm line-clamp-2">
-                    {day.outfit.description}
-                  </h3>
-                  
                   <div className="text-xs text-gray-300">
                     <div className="flex items-center gap-1 mb-1">
                       <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                      {day.outfit.topwear}
+                      {removeNumberPrefix(day.outfit.topwear)}
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                      {day.outfit.bottomwear}
+                      {removeNumberPrefix(day.outfit.bottomwear)}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
-                    <span className="px-2 py-1 bg-purple-500/20 text-purple-200 text-xs rounded-full">
-                      {day.outfit.occasion}
-                    </span>
-                  </div>
+                  {day.outfit.accessories.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1 mt-2">
+                      <span className="text-xs text-purple-200 font-medium">✨ Accessories:</span>
+                      {day.outfit.accessories.slice(0, 2).map((accessory, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-purple-500/20 text-purple-200 text-xs rounded-full">
+                          {accessory}
+                        </span>
+                      ))}
+                      {day.outfit.accessories.length > 2 && (
+                        <span className="px-2 py-1 bg-purple-500/20 text-purple-200 text-xs rounded-full">
+                          +{day.outfit.accessories.length - 2} more
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -364,43 +521,36 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
                     <div>
                       <h3 className="text-lg font-semibold text-white mb-4">Outfit Details</h3>
                       <div className="space-y-4">
-                        <div>
-                          <h4 className="font-medium text-white mb-2">Description</h4>
-                          <p className="text-gray-300">{day.outfit.description}</p>
-                        </div>
-
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <h4 className="font-medium text-white mb-2">Topwear</h4>
-                            <p className="text-gray-300">{day.outfit.topwear}</p>
+                            <p className="text-gray-300">{removeNumberPrefix(day.outfit.topwear)}</p>
                           </div>
                           <div>
                             <h4 className="font-medium text-white mb-2">Bottomwear</h4>
-                            <p className="text-gray-300">{day.outfit.bottomwear}</p>
+                            <p className="text-gray-300">{removeNumberPrefix(day.outfit.bottomwear)}</p>
                           </div>
                         </div>
 
-                        {day.outfit.accessories.length > 0 && (
-                          <div>
-                            <h4 className="font-medium text-white mb-2">Accessories</h4>
+                        <div>
+                          <h4 className="font-medium text-white mb-3 flex items-center gap-2">
+                            <span className="text-lg">✨</span>
+                            Accessories That Will Suit You
+                          </h4>
+                          {day.outfit.accessories.length > 0 ? (
                             <div className="flex flex-wrap gap-2">
                               {day.outfit.accessories.map((accessory, idx) => (
                                 <span
                                   key={idx}
-                                  className="px-3 py-1 bg-white/10 text-gray-200 text-sm rounded-full"
+                                  className="px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-200 text-sm font-medium rounded-full border border-purple-400/30"
                                 >
                                   {accessory}
                                 </span>
                               ))}
                             </div>
-                          </div>
-                        )}
-
-                        <div>
-                          <h4 className="font-medium text-white mb-2">Occasion</h4>
-                          <span className="inline-block px-3 py-1 bg-purple-500/20 text-purple-200 text-sm rounded-full">
-                            {day.outfit.occasion}
-                          </span>
+                          ) : (
+                            <p className="text-sm text-gray-400 italic">Consider adding accessories to complete this look</p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -416,19 +566,57 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
                           </div>
                         ))}
                       </div>
-
-                      {day.weather && (
-                        <div className="mt-6 p-4 bg-white/10 rounded-lg">
-                          <h4 className="font-medium text-white mb-2">Weather</h4>
-                          <div className="flex items-center gap-2">
-                            <span className="text-2xl">{getWeatherIcon(day.weather.condition)}</span>
-                            <div>
-                              <div className="font-medium text-white">{day.weather.temperature}°C</div>
-                              <div className="text-sm text-gray-300">{day.weather.condition}</div>
+                      
+                      {/* Outfit Images in Detail View */}
+                      <div className="mt-6">
+                        <h4 className="font-medium text-white mb-3">Outfit Items</h4>
+                        {(() => {
+                          const { topwearImage, bottomwearImage, topwearItem, bottomwearItem } = getOutfitImages(day);
+                          return (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="bg-white/5 rounded-lg overflow-hidden">
+                                {topwearImage ? (
+                                  <img
+                                    src={topwearImage}
+                                    alt={day.outfit.topwear}
+                                    className="w-full h-32 object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-32 flex items-center justify-center bg-white/5">
+                                    <span className="text-2xl">👕</span>
+                                  </div>
+                                )}
+                                <div className="p-2">
+                                  <p className="text-xs text-gray-300 text-center">Topwear</p>
+                                  {topwearItem && (
+                                    <p className="text-xs text-white text-center font-medium mt-1">{removeNumberPrefix(topwearItem.name)}</p>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="bg-white/5 rounded-lg overflow-hidden">
+                                {bottomwearImage ? (
+                                  <img
+                                    src={bottomwearImage}
+                                    alt={day.outfit.bottomwear}
+                                    className="w-full h-32 object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-32 flex items-center justify-center bg-white/5">
+                                    <span className="text-2xl">👖</span>
+                                  </div>
+                                )}
+                                <div className="p-2">
+                                  <p className="text-xs text-gray-300 text-center">Bottomwear</p>
+                                  {bottomwearItem && (
+                                    <p className="text-xs text-white text-center font-medium mt-1">{removeNumberPrefix(bottomwearItem.name)}</p>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      )}
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -65,6 +65,13 @@ export default function OutfitPairingResults({
     return 'Fair';
   };
 
+  // Helper function to remove number prefixes from item names
+  const removeNumberPrefix = (text: string): string => {
+    if (!text) return text;
+    // Remove patterns like "5 - ", "1. ", "2 -", etc.
+    return text.replace(/^\d+\s*[.-]\s*/, '').trim();
+  };
+
   const downloadOutfit = (pairing: OutfitPairing, index: number) => {
     // Create a simple text file with outfit details
     const content = `Outfit #${index + 1}
@@ -218,18 +225,6 @@ Confidence: ${Math.round(pairing.confidence * 100)}%`;
                   </div>
                 </div>
 
-                {/* Occasion */}
-                <div className="mb-4">
-                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-                    {pairing.occasion}
-                  </span>
-                </div>
-
-                {/* Description */}
-                <p className="text-gray-700 mb-4 leading-relaxed">
-                  {pairing.description}
-                </p>
-
                 {/* Items */}
                 <div className="space-y-3 mb-4">
                   <div className="flex items-center gap-3">
@@ -237,7 +232,7 @@ Confidence: ${Math.round(pairing.confidence * 100)}%`;
                       <span className="text-blue-600 text-sm">👕</span>
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900">{pairing.topwear.name}</div>
+                      <div className="font-medium text-gray-900"></div>
                       <div className="text-sm text-gray-600">{pairing.topwear.color} • {pairing.topwear.style}</div>
                     </div>
                   </div>
@@ -247,28 +242,33 @@ Confidence: ${Math.round(pairing.confidence * 100)}%`;
                       <span className="text-green-600 text-sm">👖</span>
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900">{pairing.bottomwear.name}</div>
+                      <div className="font-medium text-gray-900"></div>
                       <div className="text-sm text-gray-600">{pairing.bottomwear.color} • {pairing.bottomwear.style}</div>
                     </div>
                   </div>
                 </div>
 
-                {/* Accessories */}
-                {pairing.accessories.length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">Accessories</h4>
+                {/* Accessories - Now Prominently Displayed */}
+                <div className="mb-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <span className="text-lg">✨</span>
+                    Accessories That Will Suit You
+                  </h4>
+                  {pairing.accessories.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {pairing.accessories.map((accessory, idx) => (
                         <span
                           key={idx}
-                          className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                          className="px-3 py-1.5 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 text-sm font-medium rounded-full border border-purple-200"
                         >
                           {accessory}
                         </span>
                       ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">Consider adding accessories to complete this look</p>
+                  )}
+                </div>
 
                 {/* Styling Tips */}
                 {pairing.styling_tips.length > 0 && (

@@ -167,10 +167,10 @@ export default function CalendarPage() {
         </div>
 
         {/* Main Content Card */}
-        <div className="bg-white/10 rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-shadow duration-300">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-shadow duration-300 border border-white/10">
           <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-purple-100 rounded-full">
-              <Calendar className="w-8 h-8 text-purple-600" />
+            <div className="p-3 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full border border-purple-500/30">
+              <Calendar className="w-8 h-8 text-white" />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-white">Generate Your Calendar</h2>
@@ -201,12 +201,12 @@ export default function CalendarPage() {
             </div>
           </div>
 
-          <div className="bg-purple-50/10 rounded-lg p-4 mb-6">
+          <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-4 mb-6">
             <div className="flex items-center gap-2 mb-2">
-              <Coins className="w-4 h-4 text-purple-400" />
-              <span className="font-semibold text-purple-300">Pricing</span>
+              <Coins className="w-4 h-4 text-yellow-400" />
+              <span className="font-semibold text-white">Pricing</span>
             </div>
-            <p className="text-purple-200 text-sm">500 coins to unlock</p>
+            <p className="text-gray-300 text-sm">500 coins to unlock</p>
           </div>
 
           <button
@@ -223,12 +223,12 @@ export default function CalendarPage() {
         </div>
 
         {/* How It Works */}
-        <div className="mt-12 bg-white/5 rounded-2xl shadow-xl p-8">
+        <div className="mt-12 bg-white/10 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/10">
           <h2 className="text-2xl font-bold text-white text-center mb-8">How It Works</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-blue-500/20 border border-blue-500/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Camera className="w-8 h-8 text-blue-400" />
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">1. Upload Your Wardrobe</h3>
@@ -236,7 +236,7 @@ export default function CalendarPage() {
             </div>
             
             <div className="text-center">
-              <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-purple-500/20 border border-purple-500/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl">🤖</span>
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">2. AI Analysis</h3>
@@ -244,7 +244,7 @@ export default function CalendarPage() {
             </div>
             
             <div className="text-center">
-              <div className="w-16 h-16 bg-pink-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-pink-500/20 border border-pink-500/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Calendar className="w-8 h-8 text-pink-400" />
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">3. Get Your Calendar</h3>
@@ -254,27 +254,27 @@ export default function CalendarPage() {
         </div>
 
         {/* Earn Points Section */}
-        <div className="mt-12 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-2xl p-8 text-center">
+        <div className="mt-12 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 backdrop-blur-lg rounded-2xl p-8 text-center border border-yellow-500/30">
           <h2 className="text-2xl font-bold text-white mb-4">Need More Coins?</h2>
           <p className="text-gray-300 mb-6">Earn coins by completing daily tasks and engaging with the app</p>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white/10 rounded-lg p-4">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-lg p-4 hover:bg-white/15 transition-colors">
               <div className="text-2xl mb-2">📝</div>
               <div className="font-semibold text-white">Complete Profile</div>
               <div className="text-sm text-gray-400">+50 coins</div>
             </div>
-            <div className="bg-white/10 rounded-lg p-4">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-lg p-4 hover:bg-white/15 transition-colors">
               <div className="text-2xl mb-2">📅</div>
               <div className="font-semibold text-white">Daily Login</div>
               <div className="text-sm text-gray-400">+10 coins</div>
             </div>
-            <div className="bg-white/10 rounded-lg p-4">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-lg p-4 hover:bg-white/15 transition-colors">
               <div className="text-2xl mb-2">⭐</div>
               <div className="font-semibold text-white">Write Review</div>
               <div className="text-sm text-gray-400">+50 coins</div>
             </div>
-            <div className="bg-white/10 rounded-lg p-4">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-lg p-4 hover:bg-white/15 transition-colors">
               <div className="text-2xl mb-2">👥</div>
               <div className="font-semibold text-white">Refer Friends</div>
               <div className="text-sm text-gray-400">+150 coins</div>

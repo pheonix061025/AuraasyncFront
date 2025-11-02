@@ -1,8 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Camera, Upload, X, Check, AlertCircle } from 'lucide-react';
 
@@ -12,7 +10,6 @@ interface ClothingItem {
   color: string;
   style: string;
   image: string;
-  imageUrl?: string;
   category: 'topwear' | 'bottomwear';
 }
 
@@ -61,25 +58,39 @@ export default function OutfitUploadInterface({
   const topwearInputRef = useRef<HTMLInputElement>(null);
   const bottomwearInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageUpload = useCallback(async (
-    file: File, 
-    category: 'topwear' | 'bottomwear'
-  ): Promise<string> => {
+  // Load items from localStorage on mount
+  useEffect(() => {
     try {
-      // Create a unique filename
-      const fileName = `${category}_${uuidv4()}_${file.name}`;
-      const storageRef = ref(storage, `outfits/${fileName}`);
+      const storedTopwears = localStorage.getItem('wardrobe_topwears');
+      const storedBottomwears = localStorage.getItem('wardrobe_bottomwears');
       
-      // Upload file to Firebase Storage
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      
-      return downloadURL;
+      if (storedTopwears) {
+        setTopwears(JSON.parse(storedTopwears));
+      }
+      if (storedBottomwears) {
+        setBottomwears(JSON.parse(storedBottomwears));
+      }
     } catch (error) {
-      console.error('Error uploading image:', error);
-      throw new Error('Failed to upload image');
+      console.error('Error loading wardrobe from localStorage:', error);
     }
   }, []);
+
+  // Save items to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('wardrobe_topwears', JSON.stringify(topwears));
+    } catch (error) {
+      console.error('Error saving topwears to localStorage:', error);
+    }
+  }, [topwears]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('wardrobe_bottomwears', JSON.stringify(bottomwears));
+    } catch (error) {
+      console.error('Error saving bottomwears to localStorage:', error);
+    }
+  }, [bottomwears]);
 
   const handleFileSelect = useCallback(async (
     files: FileList | null, 
@@ -119,9 +130,7 @@ export default function OutfitUploadInterface({
           return;
         }
         
-        const imageUrl = await handleImageUpload(file, category);
-        
-        // Convert image to base64 for Gemini API
+        // Convert image to base64 and store locally (no database upload)
         const base64 = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = () => {
@@ -137,7 +146,6 @@ export default function OutfitUploadInterface({
           color: 'Unknown',
           style: 'Unknown',
           image: base64,
-          imageUrl,
           category
         };
         
@@ -156,18 +164,36 @@ export default function OutfitUploadInterface({
       
     } catch (error) {
       console.error('Error processing files:', error);
-      setError('Failed to upload images. Please try again.');
+      setError('Failed to process images. Please try again.');
     } finally {
       setUploading(false);
       setUploadProgress(0);
     }
-  }, [topwears, bottomwears, handleImageUpload]);
+  }, [topwears, bottomwears]);
 
   const removeItem = useCallback((itemId: string, category: 'topwear' | 'bottomwear') => {
     if (category === 'topwear') {
-      setTopwears(prev => prev.filter(item => item.id !== itemId));
+      setTopwears(prev => {
+        const updated = prev.filter(item => item.id !== itemId);
+        // Update localStorage
+        try {
+          localStorage.setItem('wardrobe_topwears', JSON.stringify(updated));
+        } catch (error) {
+          console.error('Error updating localStorage:', error);
+        }
+        return updated;
+      });
     } else {
-      setBottomwears(prev => prev.filter(item => item.id !== itemId));
+      setBottomwears(prev => {
+        const updated = prev.filter(item => item.id !== itemId);
+        // Update localStorage
+        try {
+          localStorage.setItem('wardrobe_bottomwears', JSON.stringify(updated));
+        } catch (error) {
+          console.error('Error updating localStorage:', error);
+        }
+        return updated;
+      });
     }
   }, []);
 
@@ -183,9 +209,27 @@ export default function OutfitUploadInterface({
       );
     
     if (category === 'topwear') {
-      setTopwears(updateItems);
+      setTopwears(prev => {
+        const updated = updateItems(prev);
+        // Update localStorage
+        try {
+          localStorage.setItem('wardrobe_topwears', JSON.stringify(updated));
+        } catch (error) {
+          console.error('Error updating localStorage:', error);
+        }
+        return updated;
+      });
     } else {
-      setBottomwears(updateItems);
+      setBottomwears(prev => {
+        const updated = updateItems(prev);
+        // Update localStorage
+        try {
+          localStorage.setItem('wardrobe_bottomwears', JSON.stringify(updated));
+        } catch (error) {
+          console.error('Error updating localStorage:', error);
+        }
+        return updated;
+      });
     }
   }, []);
 
@@ -300,7 +344,7 @@ export default function OutfitUploadInterface({
           <div key={item.id} className="relative bg-white rounded-lg border border-gray-200 p-3">
             <div className="aspect-square mb-3 rounded-lg overflow-hidden bg-gray-100">
               <img
-                src={item.imageUrl || item.image}
+                src={item.image}
                 alt={item.name}
                 className="w-full h-full object-cover"
               />
@@ -396,7 +440,7 @@ export default function OutfitUploadInterface({
           {success && (
             <div className="mb-4 p-4 bg-green-500/10 border border-green-400/30 rounded-lg flex items-center gap-2">
               <Check className="w-5 h-5 text-green-300" />
-              <span className="text-green-200">Images uploaded successfully!</span>
+              <span className="text-green-200">Images saved to your device successfully!</span>
             </div>
           )}
           

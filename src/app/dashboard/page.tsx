@@ -525,7 +525,7 @@ export default function Dashboard() {
           <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 mb-4">
             <h2 className="text-xl font-semibold mb-4 flex items-center">
               <span className="mr-2">🐛</span>
-              Debug Information
+              Debug Information 
             </h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">

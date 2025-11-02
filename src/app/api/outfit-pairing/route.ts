@@ -159,8 +159,8 @@ export async function POST(req: Request) {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // Process and validate images
-    const processImages = async (items: any[]) => {
-      const processedItems = [];
+    const processImages = async (items: any[]): Promise<{ items: any[] } | { error: string }> => {
+      const processedItems: any[] = [];
       
       for (const item of items) {
         if (!item.image) continue;
@@ -169,7 +169,7 @@ export async function POST(req: Request) {
         const validation = validateImage(base64, mimeType);
         
         if (!validation.valid) {
-          return { error: validation.error };
+          return { error: validation.error || 'Invalid image' };
         }
         
         const compressedBase64 = await compressImage(base64, mimeType);
@@ -186,19 +186,19 @@ export async function POST(req: Request) {
     };
 
     const topwearResult = await processImages(topwears);
-    if (topwearResult.error) {
+    if ('error' in topwearResult) {
       return NextResponse.json({ error: topwearResult.error }, { status: 400 });
     }
 
     const bottomwearResult = await processImages(bottomwears);
-    if (bottomwearResult.error) {
+    if ('error' in bottomwearResult) {
       return NextResponse.json({ error: bottomwearResult.error }, { status: 400 });
     }
 
     const processedTopwears = topwearResult.items;
     const processedBottomwears = bottomwearResult.items;
 
-    if (processedTopwears.length === 0 || processedBottomwears.length === 0) {
+    if (!processedTopwears || !processedBottomwears || processedTopwears.length === 0 || processedBottomwears.length === 0) {
       return NextResponse.json(
         { error: "No valid images provided" },
         { status: 400 }
@@ -301,11 +301,22 @@ export async function POST(req: Request) {
             }
           },
           required: ["pairings"]
-        }
+        } as any
       }
     });
 
     const text = result.response.text();
+    
+    // Track token usage for monitoring
+    const usage = result.response.usageMetadata;
+    const totalTokens = usage?.totalTokenCount || 0;
+    console.log("/api/outfit-pairing usage:", {
+      promptTokens: usage?.promptTokenCount || 0,
+      completionTokens: usage?.candidatesTokenCount || 0,
+      totalTokens,
+      model: "gemini-2.5-flash"
+    });
+    
     const parsed = safeJsonParse<any>(text);
 
     if (!parsed || !parsed.pairings) {
@@ -334,7 +345,7 @@ export async function POST(req: Request) {
 
     const response = NextResponse.json({ 
       pairings: bestPairings,
-      totalItems: processedTopwears.length + processedBottomwears.length
+      totalItems: (processedTopwears?.length || 0) + (processedBottomwears?.length || 0)
     });
     
     // Add security headers
