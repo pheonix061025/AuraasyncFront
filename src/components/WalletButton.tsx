@@ -59,7 +59,7 @@ export default function WalletButton() {
       >
         <Wallet className="w-6 h-6 text-white" />
         {!pointsLoading && points !== null && (
-          <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+          <span className="absolute -top-3 -right-4 bg-yellow-500 text-black text-xs font-bold rounded-full w-15 p-2 h-5 flex items-center justify-center">
             {points}
           </span>
         )}

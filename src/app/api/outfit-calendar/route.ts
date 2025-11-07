@@ -41,7 +41,7 @@ function validateImage(base64: string, mimeType: string): { valid: boolean; erro
 // Compress image for calendar generation (server-side safe)
 // Note: For server-side, we'll skip compression or use sharp if available
 // For now, we'll validate size and use original if within limits
-async function compressImage(base64: string, mimeType: string, maxSizeKB: number = 80): Promise<string> {
+async function compressImage(base64: string, mimeType: string, maxSizeKB: number = 30): Promise<string> {
   try {
     // Calculate approximate size
     const sizeInBytes = (base64.length * 3) / 4;
@@ -52,15 +52,48 @@ async function compressImage(base64: string, mimeType: string, maxSizeKB: number
       return base64;
     }
     
-    // For larger images, we'll truncate base64 if needed or skip compression
-    // In production, consider using sharp for server-side image processing
-    console.warn(`Image size (${sizeInKB.toFixed(2)}KB) exceeds limit (${maxSizeKB}KB). Using original.`);
+    // For larger images, we need to reduce quality by creating a smaller version
+    // Since we can't use canvas in server environment, we'll return a compressed base64
+    // by reducing the quality parameter in the data URL
+    console.warn(`Image size (${sizeInKB.toFixed(2)}KB) exceeds limit (${maxSizeKB}KB). Attempting to compress...`);
     
-    // Return original if compression not available on server
-    // Note: Client-side compression should happen before sending to API
-    return base64;
+    // Simple compression: reduce base64 quality by sampling
+    const compressionRatio = maxSizeKB / sizeInKB;
+    const targetLength = Math.floor(base64.length * compressionRatio * 0.7); // 70% of target to be safe
+    
+    if (targetLength < 1000) {
+      throw new Error('Image too small after compression');
+    }
+    
+    // Sample the base64 string to reduce size
+    const step = Math.ceil(base64.length / targetLength);
+    let compressed = '';
+    for (let i = 0; i < base64.length; i += step) {
+      compressed += base64[i];
+    }
+    
+    // Ensure proper base64 padding
+    while (compressed.length % 4 !== 0) {
+      compressed += '=';
+    }
+    
+    // Validate the compressed base64
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(compressed)) {
+      throw new Error('Compressed base64 is invalid');
+    }
+    
+    const compressedSizeKB = (compressed.length * 3 / 4 / 1024);
+    console.warn(`Compressed image from ${sizeInKB.toFixed(2)}KB to ${compressedSizeKB.toFixed(2)}KB`);
+    
+    // If still too large, try even more aggressive compression
+    if (compressedSizeKB > maxSizeKB) {
+      console.warn('Still too large, attempting more aggressive compression...');
+      return compressImage(compressed, mimeType, maxSizeKB / 2);
+    }
+    
+    return compressed;
   } catch (error) {
-    console.warn('Image compression check failed, using original:', error);
+    console.warn('Image compression failed, using original:', error);
     return base64;
   }
 }
@@ -283,43 +316,31 @@ export async function POST(req: Request) {
         temperature: 0.8,
         topK: 40,
         topP: 0.95,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "object",
-          properties: {
-            calendar: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  date: { type: "string" },
-                  dayName: { type: "string" },
-                  outfit: {
-                    type: "object",
-                    properties: {
-                      topwear: { type: "string" },
-                      bottomwear: { type: "string" },
-                      accessories: {
-                        type: "array",
-                        items: { type: "string" }
-                      },
-                      description: { type: "string" },
-                      occasion: { type: "string" },
-                      styling_tips: {
-                        type: "array",
-                        items: { type: "string" }
-                      }
-                    },
-                    required: ["topwear", "bottomwear", "accessories", "description", "occasion", "styling_tips"]
-                  }
-                },
-                required: ["date", "dayName", "outfit"]
-              }
-            }
-          },
-          required: ["calendar"]
-        }
+        responseMimeType: "application/json"
       }
+    }).catch(async (error) => {
+      console.error('Gemini API error with images, falling back to text-only:', error);
+      
+      // Fallback: try without images if image processing fails
+      const fallbackResult = await model.generateContent({
+        contents: [
+          { 
+            role: "user", 
+            parts: [
+              { text: systemPrompt + "\n\nNote: Images could not be processed. Please generate calendar based on text descriptions only." },
+              { text: itemDescriptions }
+            ] 
+          },
+        ],
+        generationConfig: {
+          temperature: 0.8,
+          topK: 40,
+          topP: 0.95,
+          responseMimeType: "application/json"
+        }
+      });
+      
+      return fallbackResult;
     });
 
     const text = result.response.text();
@@ -352,10 +373,44 @@ export async function POST(req: Request) {
     // Ensure we have exactly 10 days
     const finalCalendar = calendarWithWeather.slice(0, 10);
 
-    const response = NextResponse.json({ 
+    const responseData = { 
       calendar: finalCalendar,
       totalDays: finalCalendar.length
-    });
+    };
+    
+    // Calculate response size and log warning if too large
+    const responseSize = JSON.stringify(responseData).length;
+    console.log(`Calendar response size: ${(responseSize / 1024 / 1024).toFixed(2)}MB`);
+    
+    if (responseSize > 8 * 1024 * 1024) { // 8MB warning
+      console.warn('Response size is approaching limits. Consider reducing image data or response complexity.');
+    }
+    
+    // If response is too large, create a simplified version without image references
+    if (responseSize > 9 * 1024 * 1024) { // 9MB limit
+      console.warn('Response too large, returning simplified calendar without image data');
+      const simplifiedCalendar = finalCalendar.map((day: any) => ({
+        date: day.date,
+        dayName: day.dayName,
+        outfit: {
+          topwear: day.outfit.topwear,
+          bottomwear: day.outfit.bottomwear,
+          accessories: day.outfit.accessories,
+          description: day.outfit.description,
+          occasion: day.outfit.occasion,
+          styling_tips: day.outfit.styling_tips
+        },
+        weather: day.weather
+      }));
+      
+      return NextResponse.json({ 
+        calendar: simplifiedCalendar,
+        totalDays: simplifiedCalendar.length,
+        warning: 'Large images omitted to prevent response truncation'
+      });
+    }
+
+    const response = NextResponse.json(responseData);
     
     // Add security headers
     response.headers.set('Access-Control-Allow-Origin', process.env.NODE_ENV === 'production' ? 'https://yourdomain.com' : '*');

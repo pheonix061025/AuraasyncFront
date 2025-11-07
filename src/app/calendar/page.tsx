@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSecurePoints } from '@/hooks/useSecurePoints';
-import { Calendar, Coins, Camera, Info } from 'lucide-react';
-import { getUserData, setUserData } from '@/lib/userState';
+import { Calendar, Coins, Camera, Info, ArrowLeft } from 'lucide-react';
+import { getUserData, setUserData, getRedirectPath } from '@/lib/userState';
 import OutfitUploadInterface from '@/components/OutfitUploadInterface';
 import OutfitCalendarGenerator from '@/components/OutfitCalendarGenerator';
 import calenderPc from '/public/CalenderPc.png'
@@ -61,6 +61,11 @@ export default function CalendarPage() {
     }
   };
 
+  const handleBack = () => {
+    const redirectPath = getRedirectPath();
+    router.push(redirectPath);
+  };
+
   const canGenerateCalendar = userPoints >= 500;
 
   if (loading || pointsLoading) {
@@ -103,6 +108,12 @@ export default function CalendarPage() {
   return (
     <div className="h-screen bg-[url('/CalenderPc.png')] bg-cover bg-center">
       <WalletButton/>
+      <button
+        onClick={handleBack}
+        className="absolute top-4 left-4 z-20 p-3 bg-white/10 backdrop-blur-md rounded-full hover:bg-white/20 transition-all duration-300 group"
+      >
+        <ArrowLeft className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+      </button>
       <div className="absolute inset-0 z-0">
         <Image
           src={calenderPc}
@@ -125,7 +136,11 @@ export default function CalendarPage() {
             {/* <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full">
               <Calendar className="w-8 h-8 text-white" />
             </div> */}
-            <h1 className="text-[clamp(2rem,3vw,4rem)] font-bold text-white z-10">10-Day Outfit Calendar</h1>
+            <h1 className="text-[clamp(2rem,3vw,4rem)] font-bold text-white z-10">10-Day <span  className="text-pink-200"
+  // style={{
+  //   textShadow: '0 0 10px rgba(211, 183, 238, 0.5), 0 0 20px rgba(168, 85, 247, 0.6)',
+  // }}
+> Outfit Calendar</span></h1>
           </div>
           <p className="text-xl text-white/80  leading-tight font-light max-w-xl">
             Upload your wardrobe and get AI-powered personalized styling plan for the next 10 days
@@ -150,7 +165,7 @@ export default function CalendarPage() {
             </div>
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 bg-rose-200 rounded-full"></div>
-              <span className="text-gray-300">AI analyzes your wardrobe using Gemini</span>
+              <span className="text-gray-300">AI analyzes your wardrobe </span>
             </div>
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 bg-rose-200 rounded-full"></div>
@@ -239,7 +254,7 @@ export default function CalendarPage() {
         )}
 
       </div>
-      <BottomNav />
+      {/* <BottomNav /> */}
     </div>
   );
 }

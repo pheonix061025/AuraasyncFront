@@ -96,6 +96,14 @@ const nextConfig = {
     externalDir: true,
   },
 
+  // API configuration
+  api: {
+    responseLimit: '10mb',
+    bodyParser: {
+      sizeLimit: '10mb'
+    }
+  },
+
   reactStrictMode: true,
 };
 

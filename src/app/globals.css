@@ -6,6 +6,7 @@
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
+  --hero-color: 37, 31, 30;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,6 +35,15 @@ body {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  .bg-hero {
+    background-color: rgb(var(--hero-color));
+  }
+  .text-hero {
+    color: rgb(var(--hero-color));
+  }
+  .border-hero {
+    border-color: rgb(var(--hero-color));
   }
 }
 

@@ -14,6 +14,7 @@ module.exports = {
         secondary: '#f5f5f5',
         accent: '#d4af37',
         'accent-dark': '#b38f2c',
+        hero: '#251F1E',
       },
       fontFamily: {
         sans: ['var(--font-montserrat)', 'sans-serif'],

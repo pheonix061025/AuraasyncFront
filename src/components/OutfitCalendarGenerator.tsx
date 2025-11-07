@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, ArrowLeft, Download, Share2, CheckCircle, Clock } from 'lucide-react';
 
 interface CalendarDay {
@@ -43,6 +43,14 @@ export default function OutfitCalendarGenerator({
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
+  // Debug: Log received items
+  useEffect(() => {
+    console.log('Calendar generator received:', {
+      topwears: topwears.map(t => ({ name: t.name, hasImage: !!t.image, imageSize: t.image?.length })),
+      bottomwears: bottomwears.map(b => ({ name: b.name, hasImage: !!b.image, imageSize: b.image?.length }))
+    });
+  }, [topwears, bottomwears]);
+
   // Check if user has access: either already paid in this flow or has enough points
   const canGenerateCalendar = alreadyPaid || userPoints >= 500;
 
@@ -80,11 +88,35 @@ export default function OutfitCalendarGenerator({
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (jsonError) {
+          // If JSON parsing fails, try to get text response or use generic error
+          const errorText = await response.text().catch(() => 'Failed to generate calendar');
+          throw new Error(errorText.slice(0, 200) || 'Failed to generate calendar');
+        }
         throw new Error(errorData.error || 'Failed to generate calendar');
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('JSON parsing error:', jsonError);
+        throw new Error('Invalid response from server. Please try again.');
+      }
+      
+      if (!data || !data.calendar) {
+        throw new Error('Invalid calendar data received from server.');
+      }
+      
+      // Show warning if response was simplified due to size
+      if (data.warning) {
+        console.warn('Server warning:', data.warning);
+        // You could show this as a toast or notification if you have one
+      }
+      
       setCalendar(data.calendar);
 
       // Only deduct if not paid already in this flow
@@ -177,6 +209,9 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
   const findMatchingItem = (description: string, items: any[]) => {
     if (!description || !items || items.length === 0) return null;
     
+    // Clean the description to extract the core item name
+    const cleanDescription = description.toLowerCase().trim();
+    
     // Try to extract item number from description (e.g., "1", "Item 1", "#1")
     const numberMatch = description.match(/\b(\d+)\b/);
     if (numberMatch) {
@@ -188,31 +223,56 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
     
     // Try exact match first
     const exactMatch = items.find(item => 
-      item.name?.toLowerCase() === description.toLowerCase() ||
-      description.toLowerCase().includes(item.name?.toLowerCase() || '')
+      item.name?.toLowerCase() === cleanDescription ||
+      cleanDescription === item.name?.toLowerCase()
     );
     if (exactMatch) return exactMatch;
     
+    // Try partial match - check if description contains item name or vice versa
+    const partialMatch = items.find(item => 
+      item.name && (
+        cleanDescription.includes(item.name.toLowerCase()) ||
+        item.name.toLowerCase().includes(cleanDescription)
+      )
+    );
+    if (partialMatch) return partialMatch;
+    
     // Try matching by color
     const colorMatch = items.find(item => 
-      item.color && description.toLowerCase().includes(item.color.toLowerCase())
+      item.color && (
+        cleanDescription.includes(item.color.toLowerCase()) ||
+        item.color.toLowerCase().includes(cleanDescription)
+      )
     );
     if (colorMatch) return colorMatch;
     
     // Try matching by style
     const styleMatch = items.find(item => 
-      item.style && description.toLowerCase().includes(item.style.toLowerCase())
+      item.style && (
+        cleanDescription.includes(item.style.toLowerCase()) ||
+        item.style.toLowerCase().includes(cleanDescription)
+      )
     );
     if (styleMatch) return styleMatch;
     
-    // If no match, return first item as fallback
-    return items[0] || null;
+    // If no match found, return null instead of first item to avoid wrong images
+    return null;
   };
   
   // Get images for a specific day's outfit
   const getOutfitImages = (day: CalendarDay) => {
     const topwearItem = findMatchingItem(day.outfit.topwear, topwears);
     const bottomwearItem = findMatchingItem(day.outfit.bottomwear, bottomwears);
+    
+    // Debug logging
+    console.log('Matching items for day:', day.date, {
+      topwearDescription: day.outfit.topwear,
+      bottomwearDescription: day.outfit.bottomwear,
+      topwearItem: topwearItem?.name,
+      bottomwearItem: bottomwearItem?.name,
+      hasTopwearImage: !!topwearItem?.image,
+      hasBottomwearImage: !!bottomwearItem?.image
+    });
     
     return {
       topwearImage: topwearItem?.image || null,
@@ -226,7 +286,7 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
     return (
       <div className="min-h-screen bg-[#251F1E] flex items-center justify-center">
         <div className="max-w-md mx-auto text-center p-8 bg-white/10 border border-white/15 rounded-2xl backdrop-blur-md">
-          <div className="text-6xl mb-6">📅</div>
+          <div className="text-6xl mb-6"></div>
           <h2 className="text-2xl font-bold text-white mb-4">Calendar Access Required</h2>
           <p className="text-gray-300 mb-6">
             You need 500 coins to unlock the 10-day outfit calendar feature.
@@ -334,18 +394,35 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
             {/* Topwears Section */}
             <div>
               <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                <span>👕</span>
+                <span></span>
                 Topwears ({topwears.length})
               </h3>
               <div className="grid grid-cols-3 gap-3">
                 {topwears.map((item, index) => (
                   <div key={item.id || index} className="relative group">
                     <div className="aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10">
-                      <img
-                        src={item.image}
-                        alt={item.name || `Topwear ${index + 1}`}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
+                      {item.image && item.image.startsWith('data:image/') ? (
+                        <img
+                          src={item.image}
+                          alt={item.name || `Topwear ${index + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          onError={(e) => {
+                            console.error('Failed to load wardrobe topwear image:', item.name, 'Size:', item.image?.length);
+                            e.currentTarget.style.display = 'none';
+                          }}
+                          onLoad={() => {
+                            console.log('Successfully loaded topwear image:', item.name);
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-red-400">
+                          <div className="text-center">
+                            <div className="text-2xl mb-1">❌</div>
+                            <div className="text-xs">No valid image</div>
+                            <div className="text-xs mt-1">{item.image ? 'Invalid format' : 'Missing'}</div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="mt-2 text-center">
                       <p className="text-xs text-gray-300 truncate">{item.name || `Item ${index + 1}`}</p>
@@ -375,11 +452,28 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
                 {bottomwears.map((item, index) => (
                   <div key={item.id || index} className="relative group">
                     <div className="aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10">
-                      <img
-                        src={item.image}
-                        alt={item.name || `Bottomwear ${index + 1}`}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
+                      {item.image && item.image.startsWith('data:image/') ? (
+                        <img
+                          src={item.image}
+                          alt={item.name || `Bottomwear ${index + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          onError={(e) => {
+                            console.error('Failed to load wardrobe bottomwear image:', item.name, 'Size:', item.image?.length);
+                            e.currentTarget.style.display = 'none';
+                          }}
+                          onLoad={() => {
+                            console.log('Successfully loaded bottomwear image:', item.name);
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-red-400">
+                          <div className="text-center">
+                            <div className="text-2xl mb-1">❌</div>
+                            <div className="text-xs">No valid image</div>
+                            <div className="text-xs mt-1">{item.image ? 'Invalid format' : 'Missing'}</div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="mt-2 text-center">
                       <p className="text-xs text-gray-300 truncate">{item.name || `Item ${index + 1}`}</p>
@@ -412,7 +506,7 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
               onClick={() => setSelectedDate(selectedDate === day.date ? null : day.date)}
             >
               {/* Date Header */}
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4">
+              <div className="bg-white/30 text-white p-4">
                 <div className="text-sm font-medium">{day.dayName}</div>
                 <div className="text-lg font-bold">{new Date(day.date).getDate()}</div>
               </div>
@@ -430,6 +524,10 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
                             src={topwearImage}
                             alt={day.outfit.topwear}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.error('Failed to load topwear image:', day.outfit.topwear);
+                              e.currentTarget.style.display = 'none';
+                            }}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
@@ -448,6 +546,10 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
                             src={bottomwearImage}
                             alt={day.outfit.bottomwear}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.error('Failed to load bottomwear image:', day.outfit.bottomwear);
+                              e.currentTarget.style.display = 'none';
+                            }}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
@@ -463,7 +565,7 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
                 })()}
 
                 <div className="space-y-2">
-                  <div className="text-xs text-gray-300">
+                  {/* <div className="text-xs text-gray-300">
                     <div className="flex items-center gap-1 mb-1">
                       <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                       {removeNumberPrefix(day.outfit.topwear)}
@@ -472,7 +574,7 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                       {removeNumberPrefix(day.outfit.bottomwear)}
                     </div>
-                  </div>
+                  </div> */}
 
                   {day.outfit.accessories.length > 0 && (
                     <div className="flex flex-wrap items-center gap-1 mt-2">
@@ -497,7 +599,7 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
 
         {/* Detailed View */}
         {selectedDate && (
-          <div className="mt-8 bg-white rounded-xl shadow-lg p-6">
+          <div className="mt-8 bg- rounded-xl shadow-lg p-6">
             {(() => {
               const day = calendar.find(d => d.date === selectedDate);
               if (!day) return null;

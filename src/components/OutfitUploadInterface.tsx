@@ -4,6 +4,80 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Camera, Upload, X, Check, AlertCircle } from 'lucide-react';
 
+// Client-side image compression function
+const compressImageClientSide = async (dataUrl: string, maxSizeKB: number = 100): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          reject(new Error('Cannot get canvas context'));
+          return;
+        }
+        
+        // Calculate new dimensions
+        let { width, height } = img;
+        const maxDimension = 800;
+        
+        if (width > height && width > maxDimension) {
+          height = (height * maxDimension) / width;
+          width = maxDimension;
+        } else if (height > maxDimension) {
+          width = (width * maxDimension) / height;
+          height = maxDimension;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Try different quality levels
+        const tryCompress = (quality: number) => {
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const sizeKB = blob.size / 1024;
+                if (sizeKB <= maxSizeKB || quality <= 0.1) {
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const result = reader.result as string;
+                    if (result && result.startsWith('data:image/')) {
+                      resolve(result);
+                    } else {
+                      reject(new Error('Compression produced invalid data URL'));
+                    }
+                  };
+                  reader.onerror = () => reject(new Error('Failed to read compressed blob'));
+                  reader.readAsDataURL(blob);
+                } else {
+                  // Try lower quality
+                  tryCompress(Math.max(0.1, quality - 0.1));
+                }
+              } else {
+                reject(new Error('Canvas compression failed - no blob produced'));
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        
+        tryCompress(0.8);
+      } catch (error) {
+        reject(new Error(`Canvas error: ${error}`));
+      }
+    };
+    
+    img.onerror = () => reject(new Error('Failed to load image for compression'));
+    img.src = dataUrl;
+  });
+};
+
 interface ClothingItem {
   id: string;
   name: string;
@@ -65,30 +139,79 @@ export default function OutfitUploadInterface({
       const storedBottomwears = localStorage.getItem('wardrobe_bottomwears');
       
       if (storedTopwears) {
-        setTopwears(JSON.parse(storedTopwears));
+        const parsed = JSON.parse(storedTopwears);
+        // Filter out items with corrupted/empty images
+        const validTopwears = parsed.filter((item: any) => 
+          item.image && 
+          item.image.length > 100 && // Minimum reasonable size for a data URL
+          item.image.includes(',')
+        );
+        if (validTopwears.length !== parsed.length) {
+          console.warn(`Filtered out ${parsed.length - validTopwears.length} corrupted topwear items`);
+          localStorage.setItem('wardrobe_topwears', JSON.stringify(validTopwears));
+        }
+        setTopwears(validTopwears);
       }
       if (storedBottomwears) {
-        setBottomwears(JSON.parse(storedBottomwears));
+        const parsed = JSON.parse(storedBottomwears);
+        // Filter out items with corrupted/empty images
+        const validBottomwears = parsed.filter((item: any) => 
+          item.image && 
+          item.image.length > 100 && // Minimum reasonable size for a data URL
+          item.image.includes(',')
+        );
+        if (validBottomwears.length !== parsed.length) {
+          console.warn(`Filtered out ${parsed.length - validBottomwears.length} corrupted bottomwear items`);
+          localStorage.setItem('wardrobe_bottomwears', JSON.stringify(validBottomwears));
+        }
+        setBottomwears(validBottomwears);
       }
     } catch (error) {
       console.error('Error loading wardrobe from localStorage:', error);
+      // Clear corrupted localStorage
+      localStorage.removeItem('wardrobe_topwears');
+      localStorage.removeItem('wardrobe_bottomwears');
     }
   }, []);
 
   // Save items to localStorage whenever they change
   useEffect(() => {
     try {
-      localStorage.setItem('wardrobe_topwears', JSON.stringify(topwears));
+      const dataToStore = JSON.stringify(topwears);
+      // Check if data is too large for localStorage (typically 5-10MB limit)
+      if (dataToStore.length > 4 * 1024 * 1024) { // 4MB safety limit
+        console.warn('Topwear data too large for localStorage, skipping storage');
+        return;
+      }
+      localStorage.setItem('wardrobe_topwears', dataToStore);
     } catch (error) {
       console.error('Error saving topwears to localStorage:', error);
+      // Clear localStorage if it's full
+      try {
+        localStorage.removeItem('wardrobe_topwears');
+      } catch (clearError) {
+        console.error('Failed to clear localStorage:', clearError);
+      }
     }
   }, [topwears]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('wardrobe_bottomwears', JSON.stringify(bottomwears));
+      const dataToStore = JSON.stringify(bottomwears);
+      // Check if data is too large for localStorage (typically 5-10MB limit)
+      if (dataToStore.length > 4 * 1024 * 1024) { // 4MB safety limit
+        console.warn('Bottomwear data too large for localStorage, skipping storage');
+        return;
+      }
+      localStorage.setItem('wardrobe_bottomwears', dataToStore);
     } catch (error) {
       console.error('Error saving bottomwears to localStorage:', error);
+      // Clear localStorage if it's full
+      try {
+        localStorage.removeItem('wardrobe_bottomwears');
+      } catch (clearError) {
+        console.error('Failed to clear localStorage:', clearError);
+      }
     }
   }, [bottomwears]);
 
@@ -130,19 +253,65 @@ export default function OutfitUploadInterface({
           return;
         }
         
-        // Convert image to base64 and store locally (no database upload)
-        const base64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const result = reader.result as string;
-            resolve(result);
-          };
-          reader.readAsDataURL(file);
-        });
+        // Convert image to base64 and compress if needed
+        let base64: string;
+        try {
+          base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async () => {
+              const result = reader.result as string;
+              if (result && result.startsWith('data:image/')) {
+                try {
+                  // Validate the base64 data before compression
+                  const base64Data = result.split(',')[1];
+                  if (!base64Data || base64Data.length === 0) {
+                    throw new Error('Empty base64 data');
+                  }
+                  
+                  // Test if base64 is valid
+                  try {
+                    atob(base64Data);
+                  } catch (e) {
+                    throw new Error('Invalid base64 encoding');
+                  }
+                  
+                  // Compress image on client side before sending to server
+                  const compressedBase64 = await compressImageClientSide(result);
+                  
+                  // Validate compressed result
+                  if (!compressedBase64 || !compressedBase64.startsWith('data:image/')) {
+                    throw new Error('Compression failed - invalid result');
+                  }
+                  
+                  console.log('Successfully processed image:', {
+                    originalSize: result.length,
+                    compressedSize: compressedBase64.length,
+                    name: file.name
+                  });
+                  
+                  resolve(compressedBase64);
+                } catch (compressionError) {
+                  console.warn('Image compression failed, using original:', compressionError);
+                  // Fallback to original image if compression fails
+                  resolve(result);
+                }
+              } else {
+                reject(new Error('Invalid image data - not a data URL'));
+              }
+            };
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsDataURL(file);
+          });
+        } catch (error) {
+          console.error('Image processing completely failed:', error);
+          setError(`Failed to process image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          setUploading(false);
+          return;
+        }
         
         const newItem: ClothingItem = {
           id: uuidv4(),
-          name: file.name.split('.')[0],
+          name: file.name.split('.')[0] || `${category} ${currentItems.length + newItems.length + 1}`,
           color: 'Unknown',
           style: 'Unknown',
           image: base64,
@@ -164,7 +333,7 @@ export default function OutfitUploadInterface({
       
     } catch (error) {
       console.error('Error processing files:', error);
-      setError('Failed to process images. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to process images. Please try again.');
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -339,15 +508,69 @@ export default function OutfitUploadInterface({
         </button>
       </div>
       
+      {/* Debug info - Always show in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="text-xs text-gray-400 bg-black/20 p-2 rounded mb-2">
+          Debug: {items.length} {category}s loaded. 
+          Valid images: {items.filter(i => i.image && i.image.startsWith('data:image/') && i.image.length > 100).length}/{items.length}
+          {items.length > 0 && (
+            <div className="mt-1">
+              Sample image size: {items[0]?.image && items[0].image.length > 100 ? Math.round(items[0].image.length * 3 / 4 / 1024) + 'KB' : 'Too small/invalid'}
+            </div>
+          )}
+          {items.some(i => i.image && i.image.length <= 100) && (
+            <button
+              onClick={() => {
+                localStorage.removeItem('wardrobe_topwears');
+                localStorage.removeItem('wardrobe_bottomwears');
+                setTopwears([]);
+                setBottomwears([]);
+                console.log('Cleared all wardrobe data');
+              }}
+              className="mt-1 px-2 py-1 bg-red-500 text-white rounded text-xs"
+            >
+              Clear Corrupted Data
+            </button>
+          )}
+        </div>
+      )}
+      
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {items.map((item) => (
           <div key={item.id} className="relative bg-white rounded-lg border border-gray-200 p-3">
             <div className="aspect-square mb-3 rounded-lg overflow-hidden bg-gray-100">
-              <img
-                src={item.image}
-                alt={item.name}
-                className="w-full h-full object-cover"
-              />
+              {item.image && item.image.startsWith('data:image/') && item.image.length > 100 ? (
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error(`Failed to load ${category} image:`, item.name, {
+                      hasImage: !!item.image,
+                      imageLength: item.image?.length,
+                      imageStart: item.image?.substring(0, 50),
+                      isValidBase64: item.image?.startsWith('data:image/')
+                    });
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <div className="text-center">
+                    <div className="text-2xl mb-1">🖼️</div>
+                    <div className="text-xs">
+                      {!item.image ? 'No image' : 
+                       item.image.length <= 100 ? 'Image too small/corrupted' : 
+                       'Invalid format'}
+                    </div>
+                    {item.image && item.image.length <= 100 && (
+                      <div className="text-xs mt-1 text-red-400">
+                        Size: {item.image.length} chars
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -390,7 +613,8 @@ export default function OutfitUploadInterface({
   );
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+    <div className="min-h-screen bg-[#251F1E]  flex justify-center items-center w-full bg-[#] text-white overflow-y-auto p-6"
+>
       <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
@@ -486,6 +710,13 @@ export default function OutfitUploadInterface({
                     setError('Please upload exactly 5 topwears and 5 bottomwears to generate calendar');
                     return;
                   }
+                  
+                  // Debug: Log the data being sent
+                  console.log('Sending to calendar:', {
+                    topwears: topwears.map(t => ({ name: t.name, hasImage: !!t.image, imageSize: t.image?.length })),
+                    bottomwears: bottomwears.map(b => ({ name: b.name, hasImage: !!b.image, imageSize: b.image?.length }))
+                  });
+                  
                   onItemsUploaded(topwears, bottomwears);
                 }}
                 disabled={uploading || topwears.length !== 5 || bottomwears.length !== 5}
