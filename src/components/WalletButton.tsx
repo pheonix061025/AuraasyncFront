@@ -4,43 +4,27 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, X } from 'lucide-react';
 import PointsDisplay from './PointsDisplay';
+import SecurePointsDisplay from './SecurePointsDisplay';
 import { getUserData } from '@/lib/userState';
-import { supabase } from '@/lib/supabase';
+import { useSecurePoints, usePointsDisplay } from '@/hooks/useSecurePoints';
 
 export default function WalletButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [userData, setUserData] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  
+  // Use the secure points hook
+  const { points, isLoading: pointsLoading, error: pointsError, refreshPoints } = useSecurePoints();
 
   // Fetch user data on mount
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        // Get from localStorage first
+        // Get from localStorage (points are excluded from localStorage now)
         const localData = getUserData();
         console.log('WalletButton - Local data:', localData);
         
         if (localData?.user_id || localData?.email) {
           setUserData(localData); // Set immediately from localStorage
-          
-          if (localData.user_id) {
-            // Fetch latest data from Supabase
-            const { data, error } = await supabase
-              .from('user')
-              .select('*')
-              .eq('user_id', localData.user_id)
-              .single();
-              
-            console.log('WalletButton - Supabase data:', data, 'Error:', error);
-            
-            if (!error && data) {
-              setUserData({
-                ...localData,
-                points: data.points,
-                user_id: data.user_id
-              });
-            }
-          }
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -48,48 +32,19 @@ export default function WalletButton() {
     };
 
     fetchUserData();
-  }, []); // Run on mount
+  }, []);
 
-  // Refresh data when modal opens
+  // Refresh points when wallet opens
   useEffect(() => {
-    const refreshData = async () => {
-      if (!isOpen) return;
-      
-      setLoading(true);
-      try {
-        const localData = getUserData();
-        
-        if (localData?.user_id) {
-          const { data, error } = await supabase
-            .from('user')
-            .select('*')
-            .eq('user_id', localData.user_id)
-            .single();
-            
-          if (!error && data) {
-            setUserData({
-              ...localData,
-              points: data.points,
-              user_id: data.user_id
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error refreshing wallet data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    refreshData();
-  }, [isOpen]);
-
-  const handlePointsUpdate = (newUserData: any) => {
-    setUserData(newUserData);
-    // Update localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('aurasync_user_data', JSON.stringify(newUserData));
+    if (isOpen) {
+      refreshPoints();
     }
+  }, [isOpen, refreshPoints]);
+
+  // Handle user data updates (without localStorage)
+  const handlePointsUpdate = (newUserData: any) => {
+    // Only update component state, never store to localStorage
+    setUserData(newUserData);
   };
 
   // Always show the button, even if userData is null
@@ -103,9 +58,9 @@ export default function WalletButton() {
         title="Wallet"
       >
         <Wallet className="w-6 h-6 text-white" />
-        {userData && (
+        {!pointsLoading && points !== null && (
           <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-            {userData.points || 0}
+            {points}
           </span>
         )}
       </button>
@@ -143,17 +98,36 @@ export default function WalletButton() {
               </div>
 
               {/* Points Display Component */}
-              {loading ? (
+              {pointsLoading ? (
                 <div className="text-center py-8">
                   <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                   <p className="text-gray-400">Loading wallet data...</p>
                 </div>
+              ) : pointsError ? (
+                <div className="text-center py-8">
+                  <p className="text-red-400">Error loading points: {pointsError}</p>
+                  <button 
+                    onClick={refreshPoints}
+                    className="mt-2 text-blue-400 hover:underline"
+                  >
+                    Retry
+                  </button>
+                </div>
               ) : userData ? (
-                <PointsDisplay 
-                  userData={userData} 
-                  onPointsUpdate={handlePointsUpdate}
-                  showRewards={true}
-                />
+                <div className="space-y-6">
+                  {/* Secure Points Display */}
+                  <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+                    <h3 className="text-lg font-semibold text-white mb-4">Your Points Balance</h3>
+                    <SecurePointsDisplay showRefreshButton={true} />
+                  </div>
+                  
+                  {/* Original Points Display for other features (without points) */}
+                  <PointsDisplay 
+                    userData={userData} 
+                    onPointsUpdate={handlePointsUpdate}
+                    showRewards={true}
+                  />
+                </div>
               ) : (
                 <div className="text-center py-8">
                   <p className="text-gray-400">Please log in to view your wallet</p>

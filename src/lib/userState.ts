@@ -51,13 +51,25 @@ export const setUserData = (userData: UserData): void => {
   if (typeof window === 'undefined') return;
   
   try {
-    // Ensure points and related fields are included
+    // Only store non-sensitive data in localStorage
+    // Points and other critical data should always be fetched from server
     const dataToSave = {
-      ...userData,
-      points: userData.points || 0,
+      email: userData.email,
+      name: userData.name,
+      gender: userData.gender,
+      location: userData.location,
+      skin_tone: userData.skin_tone,
+      face_shape: userData.face_shape,
+      body_shape: userData.body_shape,
+      personality: userData.personality,
+      onboarding_completed: userData.onboarding_completed,
+      referral_code: userData.referral_code,
+      user_id: userData.user_id,
       last_login_date: userData.last_login_date || new Date().toISOString().split('T')[0],
-      referral_code: userData.referral_code || '',
-      total_referrals: userData.total_referrals || 0
+      // Remove points from localStorage - always fetch from server
+      total_referrals: userData.total_referrals || 0,
+      review_popup_status: userData.review_popup_status || 'enabled',
+      last_review_popup: userData.last_review_popup || null
     };
     localStorage.setItem(USER_DATA_KEY, JSON.stringify(dataToSave));
   } catch (error) {
@@ -164,4 +176,85 @@ export const getPersonalityForAPI = (userData: UserData | null): string => {
   
   // If it's a new personality category, map to MBTI
   return mapPersonalityToMBTI(userData.personality);
+};
+
+// Fetch complete user data from Supabase using Firebase auth
+export const fetchUserDataFromSupabase = async (): Promise<UserData | null> => {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    // Import Firebase auth dynamically to avoid SSR issues
+    const { auth } = await import('./firebase');
+    const { supabase } = await import('./supabase');
+    
+    const currentUser = auth.currentUser;
+    if (!currentUser?.email) {
+      console.warn('No authenticated Firebase user found');
+      return null;
+    }
+
+    // Fetch complete user data from Supabase
+    const { data: userData, error } = await supabase
+      .from('user')
+      .select('*')
+      .eq('email', currentUser.email)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user data from Supabase:', error);
+      return null;
+    }
+
+    if (!userData) {
+      console.warn('User not found in Supabase');
+      return null;
+    }
+
+    // Transform Supabase data to UserData format
+    const transformedUserData: UserData = {
+      email: userData.email,
+      name: userData.name || '',
+      gender: userData.gender || '',
+      location: userData.location || '',
+      skin_tone: userData.skin_tone || '',
+      face_shape: userData.face_shape || null,
+      body_shape: userData.body_shape || null,
+      personality: userData.personality || null,
+      onboarding_completed: userData.onboarding_completed || false,
+      points: userData.points || 0,
+      last_login_date: userData.last_login_date || new Date().toISOString().split('T')[0],
+      referral_code: userData.referral_code || '',
+      total_referrals: userData.total_referrals || 0,
+      review_popup_status: userData.review_popup_status || 'enabled',
+      last_review_popup: userData.last_review_popup || null,
+      user_id: userData.user_id
+    };
+
+    // Update localStorage with fresh data
+    setUserData(transformedUserData);
+    
+    return transformedUserData;
+  } catch (error) {
+    console.error('Error in fetchUserDataFromSupabase:', error);
+    return null;
+  }
+};
+
+// Get current user data (localStorage first, then fetch from Supabase if needed)
+export const getCurrentUserData = async (): Promise<UserData | null> => {
+  // First try to get from localStorage
+  const localData = getUserData();
+  
+  // If we have local data and user is authenticated, return it
+  if (localData) {
+    return localData;
+  }
+  
+  // Otherwise, fetch fresh from Supabase
+  return await fetchUserDataFromSupabase();
+};
+
+// Refresh user data from Supabase (force fetch)
+export const refreshUserData = async (): Promise<UserData | null> => {
+  return await fetchUserDataFromSupabase();
 };

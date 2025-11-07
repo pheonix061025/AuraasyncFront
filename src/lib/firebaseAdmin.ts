@@ -42,3 +42,16 @@ export async function verifyFirebaseIdToken(idToken: string) {
     throw new Error("Invalid Firebase ID token");
   }
 }
+
+/**
+ * Get user data from Firebase ID token
+ */
+export async function getUserDataFromToken(idToken: string) {
+  const decodedToken = await verifyFirebaseIdToken(idToken);
+  return {
+    uid: decodedToken.uid,
+    email: decodedToken.email,
+    name: decodedToken.name,
+    picture: decodedToken.picture
+  };
+}

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -71,6 +71,7 @@ interface UserData {
   body_shape: string | null;
   personality: string | null;
   onboarding_completed: boolean;
+  
 }
 
 interface Product {
@@ -97,6 +98,59 @@ export default function Onboarding() {
   
   // Review popup hook
   const reviewPopup = useAutoReviewPopup();
+  
+  // Check if user is already authenticated and has completed onboarding
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser && !singleMode) {
+        try {
+          // Get the Firebase ID token
+          const idToken = await firebaseUser.getIdToken();
+          
+          // Check user's onboarding status from Supabase
+          const response = await fetch('/api/user', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${idToken}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const userData = await response.json();
+            
+            // If user has completed onboarding, redirect to appropriate gender page
+            if (userData.onboarding_completed && userData.gender) {
+              router.replace(userData.gender === 'male' ? '/male' : '/female');
+              return;
+            }
+            
+            // If user exists but hasn't completed onboarding, set their data and go to basic info
+            if (userData && !userData.onboarding_completed) {
+              setUserDataState({
+                email: userData.email || firebaseUser.email || "",
+                name: userData.name || firebaseUser.displayName || "",
+                gender: userData.gender || "",
+                location: userData.location || "Mumbai",
+                skin_tone: userData.skin_tone || "",
+                face_shape: userData.face_shape || null,
+                body_shape: userData.body_shape || null,
+                personality: userData.personality || null,
+                onboarding_completed: false,
+              });
+              setCurrentStep(STEPS.BASIC_INFO);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking user status:', error);
+          // If there's an error, continue with normal flow
+        }
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [router, singleMode]);
+  
    // Initialize step immediately based on query to avoid flashing the login step in single mode
   const initialStep: StepType = (() => {
     if (singleMode) {
@@ -141,24 +195,31 @@ export default function Onboarding() {
         return true;
       }
       const idToken = await currentUser.getIdToken();
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const existing = userData;
-      const body = {
-        name: existing.name,
-        gender: existing.gender,
-        location: existing.location || 'Mumbai',
-        skin_tone: updates.skin_tone ?? existing.skin_tone ?? null,
-        face_shape: updates.face_shape ?? existing.face_shape ?? null,
-        body_shape: updates.body_shape ?? existing.body_shape ?? null,
-        personality: updates.personality ?? existing.personality ?? null,
-      };
-      await axios.put(`${API_URL}/auth/update-onboarding`, body, {
+      
+      // Use your local API to update user data
+      const response = await fetch('/api/user', {
+        method: 'POST',
         headers: {
-          Authorization: `Bearer ${idToken}`,
-          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json'
         },
+        body: JSON.stringify({
+          email: userData.email,
+          name: userData.name,
+          gender: userData.gender,
+          location: userData.location || 'Mumbai',
+          skin_tone: updates.skin_tone ?? userData.skin_tone ?? null,
+          face_shape: updates.face_shape ?? userData.face_shape ?? null,
+          body_shape: updates.body_shape ?? userData.body_shape ?? null,
+          personality: updates.personality ?? userData.personality ?? null,
+          onboarding_completed: userData.onboarding_completed
+        })
       });
-      setUserData({ ...existing, ...updates });
+      
+      if (response.ok) {
+        const updatedUserData = await response.json();
+        setUserData({ ...userData, ...updates, ...updatedUserData });
+      }
     } catch (err) {
       console.error('Single-mode save failed', err);
     } finally {
@@ -181,77 +242,61 @@ export default function Onboarding() {
           // Get the Firebase ID token
           const idToken = await result.user.getIdToken();
 
-          // Call backend API to verify token and create/update user
-          const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
           try {
-            const response = await axios.post(
-              `${API_URL}/auth/verify-user`,
-              {
+            // Use your local API to create/update user in Supabase
+            const response = await fetch('/api/user', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${idToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
                 email: result.user.email,
                 name: result.user.displayName,
-                profile_picture: result.user.photoURL,
-                firebase_id: result.user.uid
-              },
-              {
-                headers: {
-                  'Authorization': `Bearer ${idToken}`,
-                  'Content-Type': 'application/json'
-                },
-                withCredentials: true,
-              }
-            );
+                gender: '',
+                location: 'Mumbai', // Default location
+                skin_tone: '',
+                face_shape: null,
+                body_shape: null,
+                personality: null,
+                onboarding_completed: false
+              })
+            });
 
-            const backendUserData = response.data;
+            if (!response.ok) {
+              throw new Error('Failed to create/update user');
+            }
+
+            const backendUserData = await response.json();
 
             // Create user data for frontend state
             const userData: UserData = {
               email: backendUserData.email || result.user.email || "",
               name: backendUserData.name || result.user.displayName || "",
               gender: backendUserData.gender || "",
-              location: backendUserData.location || "Mumbai", // Default location
+              location: backendUserData.location || "Mumbai",
               skin_tone: backendUserData.skin_tone || "",
               face_shape: backendUserData.face_shape || null,
               body_shape: backendUserData.body_shape || null,
               personality: backendUserData.personality || null,
               onboarding_completed: backendUserData.onboarding_completed || false,
-              user_id: backendUserData.user_id || backendUserData.id, // Include user_id for Supabase
+              user_id: backendUserData.user_id,
+              points: backendUserData.points || 0,
+              referral_code: backendUserData.referral_code || '',
+              total_referrals: backendUserData.total_referrals || 0
             };
 
-            // Award signup points for new users
-            let finalUserData = userData;
-            if (backendUserData.is_new_user) {
-              const signupResult = awardSignupPoints(userData);
-              finalUserData = { ...userData, ...signupResult.userData };
-              console.log('Signup points awarded:', signupResult.transaction);
-              
-              // Save signup points to Supabase if user_id is available
-              if (finalUserData.user_id) {
-                await savePointsToSupabase(finalUserData, signupResult.transaction);
-              }
-            }
+            setUserData(userData);
+            setUserDataState(userData);
 
-            setUserData(finalUserData);
-            setUserDataState(finalUserData);
+            // Proceed to onboarding since user just logged in
+            setCurrentStep(STEPS.BASIC_INFO);
 
-            // If user is new, proceed to onboarding
-            if (!backendUserData.onboarding_completed) {
-              setCurrentStep(STEPS.BASIC_INFO);
-            } else {
-              // If user exists but onboarding is not completed
-              router.push(backendUserData.gender == "male" ? "/male" : "/female");
-            }
-
-            console.log("User authenticated and verified:", backendUserData);
+            console.log("User authenticated and saved to Supabase:", backendUserData);
 
           } catch (apiError: any) {
-            console.error("Backend API error:", apiError);
-            if (apiError.response?.status === 401) {
-              alert("Authentication failed. Please try again.");
-            } else {
-              alert("Failed to verify user with backend. Please try again.");
-            }
-            // Sign out the user if backend verification fails
+            console.error("API error:", apiError);
+            alert("Authentication failed. Please try again.");
             await signOut(auth);
           }
         }
@@ -285,68 +330,6 @@ export default function Onboarding() {
         setIsLoading(false);
       }
     };
-
-    // Listen for auth state changes
-    React.useEffect(() => {
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        setUser(user);
-
-        // If user is already authenticated, verify with backend
-        if (user) {
-          try {
-            const idToken = await user.getIdToken();
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-            const response = await axios.post(
-              `${API_URL}/auth/verify-user`,
-              {
-                email: user.email,
-                name: user.displayName,
-                profile_picture: user.photoURL,
-                firebase_id: user.uid
-              },
-              {
-                headers: {
-                  'Authorization': `Bearer ${idToken}`,
-                  'Content-Type': 'application/json'
-                },
-                withCredentials: true,
-              }
-            );
-
-            const backendUserData = response.data;
-
-            // Create user data for frontend state
-            const userData: UserData = {
-              email: backendUserData.email || user.email || "",
-              name: backendUserData.name || user.displayName || "",
-              gender: backendUserData.gender || "",
-              location: backendUserData.location || "Mumbai",
-              skin_tone: backendUserData.skin_tone || "",
-              face_shape: backendUserData.face_shape || null,
-              body_shape: backendUserData.body_shape || null,
-              personality: backendUserData.personality || null,
-              onboarding_completed: backendUserData.onboarding_completed || false,
-            };
-
-            setUserData(userData);
-            setUserDataState(userData);
-
-            // If user exists but onboarding is not completed, continue from where they left off
-            if (!backendUserData.is_new_user) {
-              setCurrentStep(STEPS.BASIC_INFO);
-            }
-
-          } catch (error) {
-            console.error("Failed to verify user with backend:", error);
-            // If backend verification fails, sign out the user
-            await signOut(auth);
-          }
-        }
-      });
-
-      return () => unsubscribe();
-    }, [router]);
 
     return (
       <motion.div
@@ -848,7 +831,7 @@ export default function Onboarding() {
 
         // Start automatic capture sequence
         for (let i = 0; i < 3; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
+          await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 2 seconds
           await captureImage();
           setProgress((i + 1) * 25);
         }
@@ -2067,9 +2050,49 @@ export default function Onboarding() {
 
         // Start automatic capture sequence
         for (let i = 0; i < 3; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
-          await captureImage();
-          setProgress((i + 1) * 25);
+          // small delay between captures (2s)
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+
+          if (!videoRef.current || !canvasRef.current) break;
+
+          const video = videoRef.current;
+          const canvas = canvasRef.current;
+          canvas.width = video.videoWidth || 640;
+          canvas.height = video.videoHeight || 480;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) continue;
+
+          // draw current video frame to canvas (this will be used as preview)
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          // create a data URL preview immediately so UI can show the captured frame
+          try {
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+            setCapturedImages((prev) => [...prev, dataUrl]);
+
+            // update progress based on number of captures
+            setProgress(Math.min(100, Math.round(((i + 1) / 3) * 100)));
+          } catch (err) {
+            console.warn("Failed to create preview dataURL", err);
+          }
+
+          // convert canvas to blob and analyze (await so we preserve order)
+          await new Promise<void>((resolveBlob) => {
+            canvas.toBlob(
+              async (blob) => {
+                if (blob) {
+                  try {
+                    await analyzeImage(blob);
+                  } catch (e) {
+                    console.error("analyzeImage error:", e);
+                  }
+                }
+                resolveBlob();
+              },
+              "image/jpeg",
+              0.9
+            );
+          });
         }
 
         // Stop camera after capturing
@@ -3519,49 +3542,50 @@ export default function Onboarding() {
         reviewPopup.showAfterOnboarding();
       }, 2000);
 
-      // Complete onboarding by sending all user data to backend
+      // Complete onboarding by sending all user data to your local API
       try {
         const currentUser = auth.currentUser;
         if (currentUser) {
           const idToken = await currentUser.getIdToken();
-          const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-          const response = await axios.put(
-            `${API_URL}/auth/update-onboarding`,
-            {
+          const response = await fetch('/api/user', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${idToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              email: completedUserData.email,
               name: completedUserData.name,
               gender: completedUserData.gender,
-              location: completedUserData.location || "Mumbai", // Default location
+              location: completedUserData.location || "Mumbai",
               skin_tone: completedUserData.skin_tone,
               face_shape: completedUserData.face_shape,
               body_shape: completedUserData.body_shape,
               personality: completedUserData.personality,
               onboarding_completed: true
-            },
-            {
-              headers: {
-                'Authorization': `Bearer ${idToken}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
+            })
+          });
 
-          if (response.status === 200) {
-            console.log('Onboarding completed successfully:', response.data);
-
-            // Store updated user data in localStorage for other pages to access
-            localStorage.setItem('aurasync_user_data', JSON.stringify(completedUserData));
+          if (response.ok) {
+            const updatedUserData = await response.json();
+            console.log('Onboarding completed successfully:', updatedUserData);
+            
+            // Update local state with fresh data
+            setUserData(updatedUserData);
+            setUserDataState(updatedUserData);
+            
+            // Redirect to gender-specific page
+            router.push(completedUserData.gender === "male" ? "/male" : "/female");
           } else {
-            console.error('Failed to complete onboarding');
+            throw new Error('Failed to complete onboarding');
           }
         }
       } catch (error) {
-        console.error("Failed to complete onboarding:", error);
-        // Continue with redirect even if backend sync fails
+        console.error('Failed to complete onboarding:', error);
+        // Still redirect even if API fails
+        router.push(completedUserData.gender === "male" ? "/male" : "/female");
       }
-
-      // Redirect to dashboard after completing onboarding
-      router.push(completedUserData.gender == "male" ? "/male" : "/female");
     };
 
     return (
