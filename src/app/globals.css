@@ -32,6 +32,11 @@ body {
     rgb(var(--background-start-rgb));
 }
 
+.playfair{
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+}
+
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
