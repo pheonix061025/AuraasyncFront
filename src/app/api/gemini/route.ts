@@ -123,6 +123,7 @@ function verifyAuth(req: Request): boolean {
 
 export async function POST(req: Request) {
 	const globalAny = global as any;
+	const requestStartTime = Date.now();
 	
 	// Security checks
 	const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
@@ -146,8 +147,19 @@ export async function POST(req: Request) {
 	try {
 		const { mode, images, gender } = await req.json();
 
+		// Log request details
+		console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+		console.log('🔵 GEMINI API REQUEST');
+		console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+		console.log(`📋 Mode: ${mode}`);
+		console.log(`🖼️  Images: ${images?.length || 0}`);
+		console.log(`👤 Gender: ${gender || 'not specified'}`);
+		console.log(`🌐 Client IP: ${clientIP}`);
+		console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+
 		// Input validation
 		if (!mode || !Array.isArray(images) || images.length === 0) {
+			console.log('❌ Validation failed: Missing required fields');
 			return NextResponse.json(
 				{ error: "Missing required fields: mode, images[]" },
 				{ status: 400 }
@@ -197,13 +209,15 @@ export async function POST(req: Request) {
 		const genAI = new GoogleGenerativeAI(apiKey);
 		// Use the most cost-effective model by default, with fallbacks
 		// For body analysis, use a more capable model for better accuracy
-		const primaryModel = mode === "body_shape" 
-			? (process.env.GEMINI_MODEL || "gemini-2.5-flash")
-			: (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite");
+		// Use Flash Lite for all modes to optimize costs
+		const primaryModel = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
 		let model = genAI.getGenerativeModel({ model: primaryModel });
-		const fallbackModels = mode === "body_shape"
-			? ["gemini-1.5-flash", "gemini-2.5-flash-lite"].filter(m => m !== primaryModel)
-			: ["gemini-2.5-flash", "gemini-1.5-flash"].filter(m => m !== primaryModel);
+		const fallbackModels = ["gemini-2.5-flash", "gemini-1.5-flash"].filter(m => m !== primaryModel);
+		
+		console.log(`🤖 Primary Model: ${primaryModel}`);
+		if (fallbackModels.length > 0) {
+			console.log(`🔄 Fallback Models: ${fallbackModels.join(', ')}`);
+		}
 
 		// Validate and compress images
 		const imageValidation = images
@@ -226,7 +240,7 @@ export async function POST(req: Request) {
 			imageValidation
 				.filter((p) => p.base64 && p.validation.valid)
 				.map(async (p) => ({
-					base64: await compressImage(p.base64, p.mimeType, 50, mode), // Reduced from 80KB to 50KB
+					base64: await compressImage(p.base64, p.mimeType, 30, mode), // Further reduced to 30KB for token optimization
 					mimeType: p.mimeType
 				}))
 		);
@@ -245,15 +259,13 @@ export async function POST(req: Request) {
 		let systemPrompt = "";
 		let responseSchema: any | undefined;
 		if (mode === "face_skin") {
+			// Optimized prompt - shorter to reduce tokens
 			systemPrompt = [
-				"Analyze face shape and skin tone:",
-				"",
-				"Face shapes: Oval (1.5x length), Round (equal), Square (angular), Heart (wide forehead), Diamond (wide cheeks), Oblong (long)",
-				"Skin tones: Warm (golden), Cool (pink/blue), Neutral (balanced)",
-				"",
-				"Requirements: Clear face, good lighting. If unclear: {\"error\": \"face_not_detected\"} or {\"error\": \"skin_not_detected\"}",
-				"",
-				"Return JSON: face_shape, skin_tone, face_confidence, skin_confidence",
+				"Analyze face & skin:",
+				"Face: Oval/Round/Square/Heart/Diamond/Oblong",
+				"Skin: Warm/Cool/Neutral",
+				"If unclear: {\"error\": \"face_not_detected\"} or {\"error\": \"skin_not_detected\"}",
+				"Return JSON: {face_shape, skin_tone, face_confidence, skin_confidence}"
 			].join("\n");
 			responseSchema = {
 				type: "object",
@@ -301,17 +313,20 @@ export async function POST(req: Request) {
 				];
 			}
 			
+			// Optimized prompt - shorter to reduce tokens
+			const shortDescriptions = bodyDescriptions.map(d => {
+				const parts = d.split(':');
+				if (parts.length >= 2) {
+					return `${parts[0]}: ${parts[1].split(',')[0]}`;
+				}
+				return d;
+			});
 			systemPrompt = [
-				`Analyze body shape${genderHint}:`,
-				"",
-				//
-				"",
-				"Measure: shoulder width, waist width, hip width. Calculate ratios.",
-				"",
-				"Body types:",
-				...bodyDescriptions,
-				"",
-				"Return JSON: body_shape, body_confidence (0.0-1.0, min 0.7)",
+				`Analyze body${genderHint}:`,
+				"Measure: shoulders/waist/hips ratios",
+				"Types:",
+				...shortDescriptions,
+				"Return JSON: {body_shape, body_confidence} (min 0.7)"
 			].join("\n");
 			
 			responseSchema = {
@@ -332,44 +347,60 @@ export async function POST(req: Request) {
 
 		// Retry helper for transient errors
 		const retryableStatus = new Set([408, 429, 500, 502, 503, 504]);
+		let currentModelName = primaryModel; // Track which model is currently being used
 		const generateWithRetry = async (maxAttempts: number = 3) => {
 			let attempt = 0;
 			let lastError: any;
 			while (attempt < maxAttempts) {
 				try {
-					return await model.generateContent({
+					const apiCallStart = Date.now();
+					console.log(`  📞 Attempt ${attempt + 1}/${maxAttempts} using model: ${currentModelName}`);
+					const result = await model.generateContent({
 						contents: [
 							{ role: "user", parts: [{ text: systemPrompt }, ...imageParts] },
 						],
 						generationConfig: {
-							temperature: mode === "body_shape" ? 0.1 : 0, // Slight randomness for body analysis to avoid overfitting
-							topK: mode === "body_shape" ? 3 : 1, // More options for body analysis
-							topP: 0.95, // High topP for better accuracy
+							temperature: mode === "body_shape" ? 0.1 : 0,
+							topK: mode === "body_shape" ? 3 : 1,
+							topP: 0.9, // Reduced from 0.95 to optimize tokens
 							responseMimeType: responseSchema ? "application/json" : undefined,
 							responseSchema: responseSchema,
+							maxOutputTokens: 500, // Limit output tokens
 						},
 					});
+					const apiCallDuration = Date.now() - apiCallStart;
+					console.log(`  ✅ API call successful in ${apiCallDuration}ms`);
+					return result;
 				} catch (err: any) {
 					lastError = err;
 					const status: number | undefined = err?.status || err?.response?.status;
+					console.log(`  ⚠️  Attempt ${attempt + 1} failed: ${err?.message || 'Unknown error'} (Status: ${status || 'N/A'})`);
 					// On quota/network/server errors, try fallback models sequentially
 					if (status === 429 || status === 500 || status === 503 || !status) {
 						for (const fm of fallbackModels) {
 							try {
+								console.log(`  🔄 Trying fallback model: ${fm}`);
+								currentModelName = fm;
 								model = genAI.getGenerativeModel({ model: fm });
-								return await model.generateContent({
+								const fallbackStart = Date.now();
+								const result = await model.generateContent({
 									contents: [
 										{ role: "user", parts: [{ text: systemPrompt }, ...imageParts] },
 									],
 								generationConfig: {
 									temperature: mode === "body_shape" ? 0.1 : 0,
 									topK: mode === "body_shape" ? 3 : 1,
-									topP: 0.95,
+									topP: 0.9,
 									responseMimeType: responseSchema ? "application/json" : undefined,
 									responseSchema: responseSchema,
+									maxOutputTokens: 500,
 								},
 								});
+								const fallbackDuration = Date.now() - fallbackStart;
+								console.log(`  ✅ Fallback model ${fm} succeeded in ${fallbackDuration}ms`);
+								return result;
 							} catch (fallbackErr: any) {
+								console.log(`  ❌ Fallback model ${fm} failed: ${fallbackErr?.message || 'Unknown error'}`);
 								lastError = fallbackErr;
 								continue;
 							}
@@ -378,10 +409,12 @@ export async function POST(req: Request) {
 					if (!status || !retryableStatus.has(status)) break;
 					// Exponential backoff with jitter: 500ms, 1s, 2s
 					const delayMs = Math.min(2000, 500 * Math.pow(2, attempt)) + Math.floor(Math.random() * 200);
+					console.log(`  ⏳ Retrying in ${delayMs}ms...`);
 					await new Promise((r) => setTimeout(r, delayMs));
 					attempt += 1;
 				}
 			}
+			console.log(`  ❌ All attempts failed`);
 			throw lastError;
 		};
 
@@ -409,10 +442,14 @@ export async function POST(req: Request) {
 				if (globalAny.__geminiUsageStats) {
 					globalAny.__geminiUsageStats.cacheHits++;
 				}
+				console.log('💾 Cache HIT - Returning cached result');
+				console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 				return NextResponse.json({ data: entry.value, cached: true });
 			}
 			cache.delete(cacheKey);
 		}
+		
+		console.log('🚀 Making API call to Gemini...');
 
 		const result = await generateWithRetry(2);
 
@@ -420,6 +457,14 @@ export async function POST(req: Request) {
 		// Track token usage for monitoring
 		const usage = result.response.usageMetadata;
 		const totalTokens = usage?.totalTokenCount || 0;
+		const promptTokens = usage?.promptTokenCount || 0;
+		const candidatesTokenCount = usage?.candidatesTokenCount || 0;
+		
+		// Log token usage
+		console.log('\n📊 TOKEN USAGE:');
+		console.log(`  📥 Input Tokens: ${promptTokens.toLocaleString()}`);
+		console.log(`  📤 Output Tokens: ${candidatesTokenCount.toLocaleString()}`);
+		console.log(`  📊 Total Tokens: ${totalTokens.toLocaleString()}`);
 		
 		// Update usage stats
 		if (!globalAny.__geminiUsageStats) {
@@ -437,7 +482,23 @@ export async function POST(req: Request) {
 		stats.totalTokens += totalTokens;
 		if (mode === "face_skin") stats.faceRequests++;
 		if (mode === "body_shape") stats.bodyRequests++;
+		
 		const parsed = safeJsonParse<any>(text);
+		
+		// Log response details
+		console.log('\n📦 RESPONSE:');
+		console.log(`  ✅ Parsed successfully: ${parsed ? 'Yes' : 'No'}`);
+		if (parsed) {
+			if (mode === "face_skin") {
+				console.log(`  👤 Face Shape: ${parsed.face_shape || 'N/A'}`);
+				console.log(`  🎨 Skin Tone: ${parsed.skin_tone || 'N/A'}`);
+				console.log(`  📈 Face Confidence: ${parsed.face_confidence || 'N/A'}`);
+				console.log(`  📈 Skin Confidence: ${parsed.skin_confidence || 'N/A'}`);
+			} else if (mode === "body_shape") {
+				console.log(`  🏃 Body Shape: ${parsed.body_shape || 'N/A'}`);
+				console.log(`  📈 Body Confidence: ${parsed.body_confidence || 'N/A'}`);
+			}
+		}
 
 		if (!parsed) {
 			return NextResponse.json(
@@ -499,8 +560,16 @@ export async function POST(req: Request) {
 					if (first) cache.delete(first);
 				}
 				cache.set(cacheKey, { expires: Date.now() + 5 * 60_000, value: normalized });
+				console.log('💾 Result cached for 5 minutes');
 			} catch {}
 		}
+		
+		const totalDuration = Date.now() - requestStartTime;
+		console.log(`\n⏱️  Total Request Duration: ${totalDuration}ms`);
+		console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+		console.log(`📈 Session Stats: ${stats.totalRequests} requests | ${stats.totalTokens.toLocaleString()} total tokens | ${stats.cacheHits} cache hits`);
+		console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+		
 		const response = NextResponse.json({ data: normalized });
 		
 		// Add security headers
@@ -517,6 +586,13 @@ export async function POST(req: Request) {
 		if (globalAny.__geminiUsageStats) {
 			globalAny.__geminiUsageStats.errors++;
 		}
+		
+		const errorDuration = Date.now() - requestStartTime;
+		console.log('\n❌ ERROR OCCURRED:');
+		console.log(`  Error: ${err?.message || 'Unknown error'}`);
+		console.log(`  Status: ${err?.status || err?.response?.status || 'N/A'}`);
+		console.log(`  Duration: ${errorDuration}ms`);
+		console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 		
 		const status: number | undefined = err?.status || err?.response?.status;
 		if (status === 429) {

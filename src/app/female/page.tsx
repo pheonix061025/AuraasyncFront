@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import GenderNavbar from '../../components/GenderNavbar';
 import FaceAnalysisWidget from '../../components/FaceAnalysisWidget';
 import BodyAnalysisWidget from '../../components/BodyAnalysisWidget';
@@ -55,6 +56,7 @@ const Hero = () => {
 
 // Main Female Page Component with Analysis Logic
 const FemaleHome = () => {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [results, setResults] = useState<AnalysisResults>({ gender: 'Female' });
   const [skipped, setSkipped] = useState<{ face: boolean; body: boolean; personality: boolean; skin_tone: boolean }>({ 
@@ -69,37 +71,6 @@ const FemaleHome = () => {
   const [recommendationsLoaded, setRecommendationsLoaded] = useState(false);
 
   const canShowRecommendations = completed.length >= 2;
-
-  // Onboarding gate and immediate recommendations view
-  useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem('auraasync_user_data') || '{}');
-    if (!userData || !userData.onboarding_completed) {
-      window.location.href = '/onboarding';
-      return;
-    }
-    // Show recommendations immediately when onboarding is completed
-    setShowRecommendations(true);
-    if (!recommendationsLoaded) {
-      fetchRecommendations();
-      setRecommendationsLoaded(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (currentStep >= ANALYSIS_STEPS.length - 1 && canShowRecommendations) {
-      setShowRecommendations(true);
-      fetchRecommendations();
-    }
-  }, [currentStep, canShowRecommendations]);
-
-  // Auto-fetch recommendations when user data is available
-  useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem('auraasync_user_data') || '{}');
-    if (userData && userData.onboarding_completed && userData.gender === 'female' && !recommendationsLoaded) {
-      fetchRecommendations();
-      setRecommendationsLoaded(true);
-    }
-  }, [recommendationsLoaded]);
 
   const fetchRecommendations = async () => {
     setLoading(true);
@@ -133,6 +104,37 @@ const FemaleHome = () => {
     }
   };
 
+  // Onboarding gate and immediate recommendations view
+  useEffect(() => {
+    // Don't check onboarding if user is actively doing analysis (currentStep > 0)
+    // This prevents redirect when redoing analysis
+    if (currentStep > 0) {
+      return;
+    }
+    
+    const userData = JSON.parse(localStorage.getItem('auraasync_user_data') || '{}');
+    if (!userData || !userData.onboarding_completed) {
+      router.replace('/onboarding');
+      return;
+    }
+    // Only show recommendations immediately if we're not in analysis mode
+    // If currentStep is 0 or showRecommendations is false, don't auto-show
+    if (currentStep === 0 && !showRecommendations && !recommendationsLoaded) {
+      setShowRecommendations(true);
+      fetchRecommendations();
+      setRecommendationsLoaded(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, currentStep]);
+
+  useEffect(() => {
+    if (currentStep >= ANALYSIS_STEPS.length - 1 && canShowRecommendations) {
+      setShowRecommendations(true);
+      fetchRecommendations();
+    }
+  }, [currentStep, canShowRecommendations]);
+
+
   const handleComplete = (type: 'face' | 'skin_tone' | 'body' | 'personality', value: string) => {
     setResults(prev => ({ ...prev, [type === 'face' ? 'face_shape' : type === 'body' ? 'body_shape' : type === 'personality' ? 'personality_type' : 'skin_tone']: value }));
     setCompleted(prev => Array.from(new Set([...prev, type])));
@@ -153,7 +155,7 @@ const FemaleHome = () => {
   };
 
   const handleRestart = () => {
-    setCurrentStep(0);
+    setCurrentStep(1); // Start from step 1 (Face Analysis) instead of 0
     setResults({ gender: 'Female' });
     setSkipped({ face: false, body: false, personality: false, skin_tone: false });
     setCompleted([]);
@@ -162,6 +164,7 @@ const FemaleHome = () => {
     setLoading(false);
     setError(null);
     setSearchQuery(null);
+    setRecommendationsLoaded(false); // Reset recommendations loaded flag
   };
 
   // Welcome Step with Hero UI
@@ -267,10 +270,14 @@ const FemaleHome = () => {
                 Start Over
               </button>
               <button
-                onClick={handleBack}
+                onClick={() => {
+                  setShowRecommendations(false);
+                  setCurrentStep(1); // Go back to step 1 (Face Analysis)
+                  setRecommendationsLoaded(false);
+                }}
                 className="px-8 py-4 bg-pink-600 rounded-xl text-xl font-bold hover:bg-pink-700 transition-colors"
               >
-                Back to Analysis
+                Redo Analysis
               </button>
             </div>
           </motion.div>

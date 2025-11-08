@@ -39,9 +39,8 @@ function validateImage(base64: string, mimeType: string): { valid: boolean; erro
 }
 
 // Compress image for calendar generation (server-side safe)
-// Note: For server-side, we'll skip compression or use sharp if available
-// For now, we'll validate size and use original if within limits
-async function compressImage(base64: string, mimeType: string, maxSizeKB: number = 30): Promise<string> {
+// Optimized for token reduction - smaller images = fewer tokens
+async function compressImage(base64: string, mimeType: string, maxSizeKB: number = 20): Promise<string> {
   try {
     // Calculate approximate size
     const sizeInBytes = (base64.length * 3) / 4;
@@ -169,6 +168,7 @@ function getMockWeather(date: string): { temperature: number; condition: string;
 
 export async function POST(req: Request) {
   const globalAny = global as any;
+  const requestStartTime = Date.now();
   
   const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
   
@@ -207,7 +207,17 @@ export async function POST(req: Request) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // Use Flash Lite for cost optimization
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+    
+    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📅 CALENDAR API REQUEST');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`🤖 Model: gemini-2.5-flash-lite`);
+    console.log(`👕 Topwears: ${topwears.length}`);
+    console.log(`👖 Bottomwears: ${bottomwears.length}`);
+    console.log(`🌐 Client IP: ${clientIP}`);
+    console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
 
     // Process images
     const processImages = async (items: any[]): Promise<{ items: any[] } | { error: string }> => {
@@ -259,31 +269,19 @@ export async function POST(req: Request) {
     // Generate calendar dates
     const calendarDates = generateCalendarDates(startDate || new Date().toISOString().split('T')[0]);
 
-    // Create system prompt for calendar generation
+    // Optimized system prompt - shorter to reduce tokens
     const systemPrompt = [
-      "You are a professional fashion stylist creating a 10-day personalized outfit calendar.",
+      "Create 10-day outfit calendar. Rules:",
+      "1. Unique combinations daily",
+      "2. Rotate all items",
+      "3. Vary formality (casual/formal/weekend)",
+      "4. Use item numbers from lists",
       "",
-      "Instructions:",
-      "1. Create 10 unique outfit combinations for each day",
-      "2. Ensure variety in styles, colors, and occasions across the week",
-      "3. Consider different activities: work, casual, formal, weekend, etc.",
-      "4. Rotate through all available clothing items to maximize wardrobe usage",
-      "5. Provide specific styling tips for each day",
-      "6. Make each outfit appropriate for the day of the week",
+      "Dates:",
+      ...calendarDates.map((date) => `${date.date} (${date.dayName})`),
       "",
-      "Calendar dates:",
-      ...calendarDates.map((date, index) => `${index + 1}. ${date.dayName}, ${date.date}`),
-      "",
-      "Requirements:",
-      "- Each day should have a different outfit combination",
-      "- Include variety in formality levels (casual, business casual, formal, etc.)",
-      "- Rotate through all available items",
-      "- Provide practical styling tips",
-      "- Consider seasonal appropriateness",
-      "- In the topwear and bottomwear fields, include the item number (e.g., '1', '2') or the item name/description that matches the numbered list above",
-      "",
-      "Return JSON with calendar in this format:",
-      "{\"calendar\": [{\"date\": \"YYYY-MM-DD\", \"dayName\": \"Day\", \"outfit\": {\"topwear\": \"\", \"bottomwear\": \"\", \"accessories\": [\"\"], \"description\": \"\", \"occasion\": \"\", \"styling_tips\": [\"\"]}}]}"
+      "JSON format:",
+      "{\"calendar\": [{\"date\": \"YYYY-MM-DD\", \"dayName\": \"Day\", \"outfit\": {\"topwear\": \"item#\", \"bottomwear\": \"item#\", \"accessories\": [\"\"], \"description\": \"brief\", \"occasion\": \"\", \"styling_tips\": [\"tip\"]}}]}"
     ].join("\n");
 
     // Prepare image parts for Gemini
@@ -292,13 +290,12 @@ export async function POST(req: Request) {
       ...processedBottomwears.map(item => item.image)
     ];
 
-    // Add text description of items
+    // Optimized item descriptions - shorter format to reduce tokens
     const itemDescriptions = [
-      "Available Topwears:",
-      ...processedTopwears.map((item, index) => `${index + 1}. ${item.name || 'Item'} - ${item.color || 'Unknown color'} ${item.style || 'style'}`),
-      "",
-      "Available Bottomwears:",
-      ...processedBottomwears.map((item, index) => `${index + 1}. ${item.name || 'Item'} - ${item.color || 'Unknown color'} ${item.style || 'style'}`)
+      "Topwears:",
+      ...processedTopwears.map((item, index) => `${index + 1}. ${item.color || ''} ${item.style || ''}`),
+      "Bottomwears:",
+      ...processedBottomwears.map((item, index) => `${index + 1}. ${item.color || ''} ${item.style || ''}`)
     ].join("\n");
 
     const result = await model.generateContent({
@@ -313,10 +310,11 @@ export async function POST(req: Request) {
         },
       ],
       generationConfig: {
-        temperature: 0.8,
-        topK: 40,
-        topP: 0.95,
-        responseMimeType: "application/json"
+        temperature: 0.7, // Reduced for more consistent, token-efficient responses
+        topK: 20, // Reduced from 40 to save tokens
+        topP: 0.9, // Reduced from 0.95
+        responseMimeType: "application/json",
+        maxOutputTokens: 2000 // Limit output to reduce tokens
       }
     }).catch(async (error) => {
       console.error('Gemini API error with images, falling back to text-only:', error);
@@ -333,10 +331,11 @@ export async function POST(req: Request) {
           },
         ],
         generationConfig: {
-          temperature: 0.8,
-          topK: 40,
-          topP: 0.95,
-          responseMimeType: "application/json"
+          temperature: 0.7,
+          topK: 20,
+          topP: 0.9,
+          responseMimeType: "application/json",
+          maxOutputTokens: 2000
         }
       });
       
@@ -348,8 +347,18 @@ export async function POST(req: Request) {
     // Track token usage for monitoring
     const usage = result.response.usageMetadata;
     const totalTokens = usage?.totalTokenCount || 0;
+    const promptTokens = usage?.promptTokenCount || 0;
+    const candidatesTokenCount = usage?.candidatesTokenCount || 0;
+    
+    // Log token usage
+    console.log('\n📊 TOKEN USAGE:');
+    console.log(`  📥 Input Tokens: ${promptTokens.toLocaleString()}`);
+    console.log(`  📤 Output Tokens: ${candidatesTokenCount.toLocaleString()}`);
+    console.log(`  📊 Total Tokens: ${totalTokens.toLocaleString()}`);
     
     const parsed = safeJsonParse<any>(text);
+    
+    console.log(`\n✅ Calendar generated: ${parsed?.calendar?.length || 0} days`);
 
     if (!parsed || !parsed.calendar || !Array.isArray(parsed.calendar)) {
       return NextResponse.json(
@@ -403,6 +412,10 @@ export async function POST(req: Request) {
       });
     }
 
+    const totalDuration = Date.now() - requestStartTime;
+    console.log(`\n⏱️  Total Request Duration: ${totalDuration}ms`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    
     const response = NextResponse.json(responseData);
     
     // Add security headers
@@ -416,7 +429,12 @@ export async function POST(req: Request) {
     return response;
     
   } catch (err: any) {
-    console.error("/api/outfit-calendar error", err);
+    const errorDuration = Date.now() - (requestStartTime || Date.now());
+    console.log('\n❌ ERROR OCCURRED:');
+    console.log(`  Error: ${err?.message || 'Unknown error'}`);
+    console.log(`  Status: ${err?.status || err?.response?.status || 'N/A'}`);
+    console.log(`  Duration: ${errorDuration}ms`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     
     const status: number | undefined = err?.status || err?.response?.status;
     if (status === 429) {

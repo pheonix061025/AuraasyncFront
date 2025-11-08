@@ -63,6 +63,38 @@ export default function Dashboard() {
         return;
       }
 
+      // First, check localStorage for any analysis data that might not be in Supabase
+      const localUserData = getUserData();
+      if (localUserData && (localUserData.skin_tone || localUserData.face_shape || localUserData.body_shape || localUserData.personality)) {
+        // Sync localStorage data to Supabase if it exists
+        try {
+          const idToken = await currentUser.getIdToken();
+          const syncResponse = await fetch('/api/user', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${idToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              email: localUserData.email,
+              name: localUserData.name,
+              gender: localUserData.gender,
+              location: localUserData.location || 'Mumbai',
+              skin_tone: localUserData.skin_tone || null,
+              face_shape: localUserData.face_shape || null,
+              body_shape: localUserData.body_shape || null,
+              personality: localUserData.personality || null,
+              onboarding_completed: localUserData.onboarding_completed || false
+            })
+          });
+          if (syncResponse.ok) {
+            console.log('✅ Synced localStorage data to Supabase');
+          }
+        } catch (syncError) {
+          console.warn('⚠️ Failed to sync localStorage to Supabase:', syncError);
+        }
+      }
+
       const idToken = await currentUser.getIdToken();
       const API_URL =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -141,10 +173,15 @@ export default function Dashboard() {
               "Dashboard - Latest user data from Supabase:",
               latestUserData
             );
+            // Use Supabase data for analysis fields (they're the source of truth)
             setUserData({
               ...dailyLoginResult.userData,
               points: latestUserData.points,
               user_id: latestUserData.user_id,
+              skin_tone: latestUserData.skin_tone || dailyLoginResult.userData.skin_tone,
+              face_shape: latestUserData.face_shape || dailyLoginResult.userData.face_shape,
+              body_shape: latestUserData.body_shape || dailyLoginResult.userData.body_shape,
+              personality: latestUserData.personality || dailyLoginResult.userData.personality,
             });
           } else {
             console.error("Error fetching latest user data:", fetchError);
@@ -207,10 +244,15 @@ export default function Dashboard() {
             .single();
 
           if (!fetchError && latestUserData) {
+            // Use Supabase data for analysis fields (they're the source of truth)
             setUserData({
               ...dailyLoginResult.userData,
               points: latestUserData.points,
               user_id: latestUserData.user_id,
+              skin_tone: latestUserData.skin_tone || dailyLoginResult.userData.skin_tone,
+              face_shape: latestUserData.face_shape || dailyLoginResult.userData.face_shape,
+              body_shape: latestUserData.body_shape || dailyLoginResult.userData.body_shape,
+              personality: latestUserData.personality || dailyLoginResult.userData.personality,
             });
           } else {
             setUserData(dailyLoginResult.userData);
@@ -248,6 +290,35 @@ export default function Dashboard() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Refresh data when component becomes visible (e.g., after returning from redo)
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && auth.currentUser) {
+        // Small delay to ensure any redirects have completed
+        setTimeout(() => {
+          fetchUserData();
+        }, 1000);
+      }
+    };
+    
+    const handleFocus = () => {
+      if (auth.currentUser && !isLoading) {
+        // Refresh data when window regains focus (user returns from another tab/page)
+        setTimeout(() => {
+          fetchUserData();
+        }, 500);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [isLoading]);
 
   // Redirect if no user data and not loading
   React.useEffect(() => {

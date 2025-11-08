@@ -188,6 +188,49 @@ export default function Onboarding() {
     }
   }, [singleMode, singleTarget]);
 
+  // Helper function to save user data to Supabase
+  const saveUserDataToSupabase = async (dataToSave: UserData) => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        console.warn('No authenticated user for Supabase save');
+        return false;
+      }
+      
+      const idToken = await currentUser.getIdToken();
+      const response = await fetch('/api/user', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: dataToSave.email,
+          name: dataToSave.name,
+          gender: dataToSave.gender,
+          location: dataToSave.location || 'Mumbai',
+          skin_tone: dataToSave.skin_tone || null,
+          face_shape: dataToSave.face_shape || null,
+          body_shape: dataToSave.body_shape || null,
+          personality: dataToSave.personality || null,
+          onboarding_completed: dataToSave.onboarding_completed || false
+        })
+      });
+      
+      if (response.ok) {
+        const updatedUserData = await response.json();
+        console.log('✅ User data saved to Supabase:', updatedUserData);
+        return true;
+      } else {
+        console.error('❌ Failed to save user data to Supabase:', response.statusText);
+        return false;
+      }
+    } catch (err) {
+      console.error('❌ Error saving user data to Supabase:', err);
+      return false;
+    }
+  };
+
   // Helpers for single-mode save from within step UIs
   const saveSingleModeAndReturn = async (updates: Partial<UserData>) => {
     if (!singleMode || !singleTarget) return false;
@@ -199,6 +242,9 @@ export default function Onboarding() {
       }
       const idToken = await currentUser.getIdToken();
       
+      // Merge updates with existing userData
+      const updatedData = { ...userData, ...updates };
+      
       // Use your local API to update user data
       const response = await fetch('/api/user', {
         method: 'POST',
@@ -207,26 +253,48 @@ export default function Onboarding() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          email: userData.email,
-          name: userData.name,
-          gender: userData.gender,
-          location: userData.location || 'Mumbai',
-          skin_tone: updates.skin_tone ?? userData.skin_tone ?? null,
-          face_shape: updates.face_shape ?? userData.face_shape ?? null,
-          body_shape: updates.body_shape ?? userData.body_shape ?? null,
-          personality: updates.personality ?? userData.personality ?? null,
-          onboarding_completed: userData.onboarding_completed
+          email: updatedData.email,
+          name: updatedData.name,
+          gender: updatedData.gender,
+          location: updatedData.location || 'Mumbai',
+          skin_tone: updatedData.skin_tone || null,
+          face_shape: updatedData.face_shape || null,
+          body_shape: updatedData.body_shape || null,
+          personality: updatedData.personality || null,
+          onboarding_completed: updatedData.onboarding_completed || false
         })
       });
       
       if (response.ok) {
         const updatedUserData = await response.json();
-        setUserData({ ...userData, ...updates, ...updatedUserData });
+        const finalData = { ...updatedData, ...updatedUserData };
+        
+        // Update localStorage with the new data
+        updateUserData(finalData);
+        localStorage.setItem('aurasync_user_data', JSON.stringify(finalData));
+        
+        console.log('✅ Single-mode data saved to Supabase and localStorage:', finalData);
+        
+        // Update local state
+        setUserData(finalData);
+        setUserDataState(finalData);
+      } else {
+        console.error('❌ Failed to save single-mode data:', response.statusText);
+        // Still update localStorage even if Supabase save fails
+        updateUserData(updatedData);
+        localStorage.setItem('aurasync_user_data', JSON.stringify(updatedData));
       }
     } catch (err) {
-      console.error('Single-mode save failed', err);
+      console.error('❌ Single-mode save failed:', err);
+      // Still update localStorage even if API call fails
+      const updatedData = { ...userData, ...updates };
+      updateUserData(updatedData);
+      localStorage.setItem('aurasync_user_data', JSON.stringify(updatedData));
     } finally {
-      router.replace('/dashboard');
+      // Add a small delay to ensure data is saved before redirect
+      setTimeout(() => {
+        router.replace('/dashboard');
+      }, 500);
     }
     return true;
   };
@@ -792,6 +860,9 @@ export default function Onboarding() {
         if (finalData.user_id) {
           await savePointsToSupabase(finalData, pointsResult.transaction);
         }
+        
+        // Save analysis data to Supabase
+        await saveUserDataToSupabase(finalData);
         
         updateUserData(finalData);
         setUserDataState(finalData);
@@ -1532,7 +1603,7 @@ export default function Onboarding() {
                   <SkinToneManualInput />
                 ) : showManualInput && currentAnalysis === "face_shape" ? (
                   <FaceShapeManualInput />
-                ) : currentAnalysis === "face_shape" && !showManualInput && !showUpload ? (
+                ) : (currentAnalysis === "face_shape" || currentAnalysis === "skin_tone") && showCamera && !showManualInput && !showUpload ? (
                   <CameraAnalysis />
                 ) : (
                   <Image
@@ -2014,6 +2085,9 @@ export default function Onboarding() {
       if (finalData.user_id) {
         await savePointsToSupabase(finalData, pointsResult.transaction);
       }
+      
+      // Save analysis data to Supabase
+      await saveUserDataToSupabase(finalData);
       
       updateUserData(finalData);
       setUserDataState(finalData);
@@ -3253,6 +3327,9 @@ export default function Onboarding() {
       if (finalData.user_id) {
         await savePointsToSupabase(finalData, pointsResult.transaction);
       }
+      
+      // Save analysis data to Supabase
+      await saveUserDataToSupabase(finalData);
       
       updateUserData(finalData);
       setUserDataState(finalData);

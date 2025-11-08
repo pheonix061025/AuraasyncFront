@@ -19,11 +19,38 @@ export default function FlowController({ children }: FlowControllerProps) {
 
   useEffect(() => {
     let mounted = true;
+    let authChecked = false;
     
     const checkUserFlow = async (firebaseUser: any) => {
       if (!mounted) return;
       
       try {
+        const currentPath = window.location.pathname;
+        const searchParams = new URLSearchParams(window.location.search);
+        const isSingleAnalysis = currentPath === '/onboarding' && searchParams.get('mode') === 'single';
+
+        // First, check localStorage immediately to avoid unnecessary redirects
+        const localUserData = getUserData();
+        
+        // For gender pages, check localStorage first before async operations
+        if (currentPath.startsWith('/male') || currentPath.startsWith('/female')) {
+          if (localUserData && localUserData.onboarding_completed) {
+            // User has valid local data, allow them to stay on the page
+            // Only redirect if gender mismatch
+            if (localUserData.gender && !currentPath.startsWith(`/${localUserData.gender}`)) {
+              const correctPath = localUserData.gender === 'male' ? '/male' : '/female';
+              setIsLoading(false);
+              router.replace(correctPath);
+              return;
+            }
+            // Valid user on correct page, stop loading
+            setIsLoading(false);
+            setUserData(localUserData);
+            setIsAuthenticated(!!firebaseUser);
+            return;
+          }
+        }
+
         let currentUserData: UserData | null = null;
         
         if (firebaseUser) {
@@ -33,14 +60,11 @@ export default function FlowController({ children }: FlowControllerProps) {
         } else {
           // No Firebase user, check localStorage for guest data
           setIsAuthenticated(false);
-          currentUserData = getUserData();
+          currentUserData = localUserData || getUserData();
         }
         
         setUserData(currentUserData);
-        
-        const currentPath = window.location.pathname;
-        const searchParams = new URLSearchParams(window.location.search);
-        const isSingleAnalysis = currentPath === '/onboarding' && searchParams.get('mode') === 'single';
+        authChecked = true;
 
         // Landing page (guest UI): if authenticated and done, skip to gender homepage
         if (currentPath === '/') {
@@ -49,13 +73,15 @@ export default function FlowController({ children }: FlowControllerProps) {
             setIsLoading(false);
             router.replace(redirectPath);
             return;
-          } else if (isAuthenticated && (!currentUserData || !currentUserData.onboarding_completed)) {
+          } else if (firebaseUser && (!currentUserData || !currentUserData.onboarding_completed)) {
             // Authenticated user but no onboarding data
             setIsLoading(false);
             router.replace('/onboarding');
             return;
           }
           // guest stays on /
+          setIsLoading(false);
+          return;
         }
 
         // Onboarding: allow guests and incomplete users; skip if already completed
@@ -73,17 +99,18 @@ export default function FlowController({ children }: FlowControllerProps) {
 
         // Gender-specific recommendation pages guard
         if (currentPath.startsWith('/male') || currentPath.startsWith('/female')) {
-          if (!isAuthenticated || !currentUserData) {
-            // No authenticated user, go to guest UI
+          // Only redirect if we've confirmed there's no user data after checking auth
+          if (authChecked && !firebaseUser && !currentUserData) {
+            // No authenticated user and no local data, go to guest UI
             setIsLoading(false);
             router.replace('/');
             return;
-          } else if (!currentUserData.onboarding_completed) {
+          } else if (currentUserData && !currentUserData.onboarding_completed) {
             // Onboarding not completed, go to onboarding
             setIsLoading(false);
             router.replace('/onboarding');
             return;
-          } else if (currentUserData.gender && !currentPath.startsWith(`/${currentUserData.gender}`)) {
+          } else if (currentUserData && currentUserData.gender && !currentPath.startsWith(`/${currentUserData.gender}`)) {
             // Wrong gender page, redirect to correct one
             const correctPath = currentUserData.gender === 'male' ? '/male' : '/female';
             setIsLoading(false);
