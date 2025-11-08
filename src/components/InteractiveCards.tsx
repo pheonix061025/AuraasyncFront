@@ -142,7 +142,6 @@ const InteractiveCards = () => {
     }
 
     if (prefersReducedMotion || typeof window === 'undefined' || !isAnimationsEnabled) {
-      console.log('Animations disabled due to preferences or environment');
       return;
     }
 
@@ -201,8 +200,8 @@ const InteractiveCards = () => {
             pinSpacing: true,
             invalidateOnRefresh: true,
             fastScrollEnd: true,
-            onRefresh: () => console.log('ScrollTrigger refreshed'),
-            onRefreshInit: () => console.log('ScrollTrigger refresh init'),
+            onRefresh: () => {},
+            onRefreshInit: () => {},
           }
         });
 
@@ -295,7 +294,6 @@ const InteractiveCards = () => {
         requestAnimationFrame(() => {
           try {
             ScrollTrigger.refresh();
-            console.log('ScrollTrigger refreshed successfully');
           } catch (error) {
             console.warn('ScrollTrigger refresh failed:', error);
           }

@@ -348,12 +348,6 @@ export async function POST(req: Request) {
     // Track token usage for monitoring
     const usage = result.response.usageMetadata;
     const totalTokens = usage?.totalTokenCount || 0;
-    console.log("/api/outfit-calendar usage:", {
-      promptTokens: usage?.promptTokenCount || 0,
-      completionTokens: usage?.candidatesTokenCount || 0,
-      totalTokens,
-      model: "gemini-2.5-flash"
-    });
     
     const parsed = safeJsonParse<any>(text);
 
@@ -380,7 +374,6 @@ export async function POST(req: Request) {
     
     // Calculate response size and log warning if too large
     const responseSize = JSON.stringify(responseData).length;
-    console.log(`Calendar response size: ${(responseSize / 1024 / 1024).toFixed(2)}MB`);
     
     if (responseSize > 8 * 1024 * 1024) { // 8MB warning
       console.warn('Response size is approaching limits. Consider reducing image data or response complexity.');

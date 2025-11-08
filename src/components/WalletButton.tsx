@@ -21,7 +21,6 @@ export default function WalletButton() {
       try {
         // Get from localStorage (points are excluded from localStorage now)
         const localData = getUserData();
-        console.log('WalletButton - Local data:', localData);
         
         if (localData?.user_id || localData?.email) {
           setUserData(localData); // Set immediately from localStorage

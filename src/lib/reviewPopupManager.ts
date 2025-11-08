@@ -185,7 +185,6 @@ export class ReviewPopupManager {
         if (userData && userData.points !== undefined) {
           const result = pointsManager.awardPoints(userData, 'REVIEW', `App review (${rating} stars)`);
           localStorage.setItem('aurasync_user_data', JSON.stringify(result.userData));
-          console.log('Review points awarded:', result.transaction);
         }
       } catch (error) {
         console.error('Error awarding review points:', error);

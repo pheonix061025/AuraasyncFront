@@ -71,7 +71,10 @@ interface UserData {
   body_shape: string | null;
   personality: string | null;
   onboarding_completed: boolean;
-  
+  user_id?: number;
+  points?: number;
+  referral_code?: string;
+  total_referrals?: number;
 }
 
 interface Product {
@@ -280,7 +283,7 @@ export default function Onboarding() {
               body_shape: backendUserData.body_shape || null,
               personality: backendUserData.personality || null,
               onboarding_completed: backendUserData.onboarding_completed || false,
-              user_id: backendUserData.user_id,
+              user_id: backendUserData.user_id || undefined,
               points: backendUserData.points || 0,
               referral_code: backendUserData.referral_code || '',
               total_referrals: backendUserData.total_referrals || 0
@@ -291,8 +294,6 @@ export default function Onboarding() {
 
             // Proceed to onboarding since user just logged in
             setCurrentStep(STEPS.BASIC_INFO);
-
-            console.log("User authenticated and saved to Supabase:", backendUserData);
 
           } catch (apiError: any) {
             console.error("API error:", apiError);
@@ -753,7 +754,6 @@ export default function Onboarding() {
         // Award points for completing skin/face analysis
         const pointsResult = awardAnalysisPoints(updatedData, 'Skin & Face Analysis');
         const finalData = pointsResult.userData;
-        console.log('Analysis points awarded:', pointsResult.transaction);
         
         // Save points to Supabase if user_id is available
         if (finalData.user_id) {
@@ -1976,7 +1976,6 @@ export default function Onboarding() {
       // Award points for completing body analysis
       const pointsResult = awardAnalysisPoints(updatedData, 'Body Analysis');
       const finalData = pointsResult.userData;
-      console.log('Body analysis points awarded:', pointsResult.transaction);
       
       // Save points to Supabase if user_id is available
       if (finalData.user_id) {
@@ -3216,7 +3215,6 @@ export default function Onboarding() {
       // Award points for completing personality analysis
       const pointsResult = awardAnalysisPoints(updatedData, 'Personality Analysis');
       const finalData = pointsResult.userData;
-      console.log('Personality analysis points awarded:', pointsResult.transaction);
       
       // Save points to Supabase if user_id is available
       if (finalData.user_id) {
@@ -3528,7 +3526,6 @@ export default function Onboarding() {
       // Award points for completing full onboarding
       const onboardingResult = awardOnboardingPoints(userData);
       const completedUserData = { ...onboardingResult.userData, onboarding_completed: true };
-      console.log('Onboarding completion points awarded:', onboardingResult.transaction);
       
       // Save points to Supabase if user_id is available
       if (completedUserData.user_id) {
@@ -3569,7 +3566,6 @@ export default function Onboarding() {
 
           if (response.ok) {
             const updatedUserData = await response.json();
-            console.log('Onboarding completed successfully:', updatedUserData);
             
             // Update local state with fresh data
             setUserData(updatedUserData);

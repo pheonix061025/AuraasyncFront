@@ -55,11 +55,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create transaction' }, { status: 500 });
     }
 
+    // Get current user points
+    const { data: currentUser, error: fetchError } = await supabase
+      .from('user')
+      .select('points')
+      .eq('user_id', parseInt(user_id))
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching current user points:', fetchError);
+      return NextResponse.json({ error: 'Failed to fetch current points' }, { status: 500 });
+    }
+
     // Update user points
     const { error: updateError } = await supabase
       .from('user')
       .update({ 
-        points: supabase.raw(`points + ${parseInt(points)}`),
+        points: (currentUser?.points || 0) + parseInt(points),
         updated_at: new Date().toISOString()
       })
       .eq('user_id', parseInt(user_id));

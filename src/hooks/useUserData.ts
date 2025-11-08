@@ -33,7 +33,10 @@ export function useUserData(): UseUserDataReturn {
       const userData = await getCurrentUserData();
       
       // Remove points from the returned data - always fetch from server
-      const { points, ...userDataWithoutPoints } = userData || {};
+      const userDataWithoutPoints = userData ? (() => {
+        const { points, ...rest } = userData;
+        return rest;
+      })() : null;
       
       setUser(userDataWithoutPoints);
       setIsAuthenticated(!!userData);
@@ -54,7 +57,10 @@ export function useUserData(): UseUserDataReturn {
       const userData = await refreshUserData();
       
       // Remove points from the returned data - always fetch from server
-      const { points, ...userDataWithoutPoints } = userData || {};
+      const userDataWithoutPoints = userData ? (() => {
+        const { points, ...rest } = userData;
+        return rest;
+      })() : null;
       
       setUser(userDataWithoutPoints);
       setIsAuthenticated(!!userData);
@@ -90,7 +96,10 @@ export function useUserData(): UseUserDataReturn {
           const userData = await fetchUserDataFromSupabase();
           
           // Remove points from the returned data - always fetch from server
-          const { points, ...userDataWithoutPoints } = userData || {};
+          const userDataWithoutPoints = userData ? (() => {
+            const { points, ...rest } = userData;
+            return rest;
+          })() : null;
           
           setUser(userDataWithoutPoints);
           setIsAuthenticated(!!userData);

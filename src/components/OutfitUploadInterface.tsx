@@ -283,11 +283,7 @@ export default function OutfitUploadInterface({
                     throw new Error('Compression failed - invalid result');
                   }
                   
-                  console.log('Successfully processed image:', {
-                    originalSize: result.length,
-                    compressedSize: compressedBase64.length,
-                    name: file.name
-                  });
+                  // Image processed successfully
                   
                   resolve(compressedBase64);
                 } catch (compressionError) {
@@ -525,7 +521,6 @@ export default function OutfitUploadInterface({
                 localStorage.removeItem('wardrobe_bottomwears');
                 setTopwears([]);
                 setBottomwears([]);
-                console.log('Cleared all wardrobe data');
               }}
               className="mt-1 px-2 py-1 bg-red-500 text-white rounded text-xs"
             >
@@ -711,11 +706,7 @@ export default function OutfitUploadInterface({
                     return;
                   }
                   
-                  // Debug: Log the data being sent
-                  console.log('Sending to calendar:', {
-                    topwears: topwears.map(t => ({ name: t.name, hasImage: !!t.image, imageSize: t.image?.length })),
-                    bottomwears: bottomwears.map(b => ({ name: b.name, hasImage: !!b.image, imageSize: b.image?.length }))
-                  });
+                  // Sending data to calendar
                   
                   onItemsUploaded(topwears, bottomwears);
                 }}

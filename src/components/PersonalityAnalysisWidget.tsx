@@ -326,7 +326,6 @@ const PersonalityAnalysisWidget: React.FC<PersonalityAnalysisWidgetProps> = ({
     questionId: number,
     value: string
   ): string[] => {
-    console.log(questionId);
     const base = "/assets/personality";
     const name = normalizeForFilename(value, questionId);
     const g = getGenderLetter(gender);

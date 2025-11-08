@@ -75,11 +75,18 @@ export async function POST(request: NextRequest) {
         // Don't fail the request, just log the error
       }
 
+      // Get current user points
+      const { data: currentUser, error: fetchError } = await supabase
+        .from('user')
+        .select('points')
+        .eq('user_id', parseInt(user_id))
+        .single();
+
       // Update user points
       const { error: updateError } = await supabase
         .from('user')
         .update({ 
-          points: supabase.raw(`points + ${points_awarded}`),
+          points: (currentUser?.points || 0) + points_awarded,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', parseInt(user_id));

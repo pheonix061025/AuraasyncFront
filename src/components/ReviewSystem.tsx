@@ -30,10 +30,6 @@ export default function ReviewSystem({
 
     setIsSubmitting(true);
     
-    // Debug: Check userData structure
-    console.log('ReviewSystem - userData:', userData);
-    console.log('ReviewSystem - user_id field:', userData?.user_id);
-    
     try {
       // Award review points
       const result = awardReviewPoints(userData, productName);
@@ -73,15 +69,7 @@ export default function ReviewSystem({
       }
 
       // Update user points in Supabase
-      console.log('Updating user points:', {
-        user_id: userData.user_id,
-        points_to_add: result.transaction.points,
-        current_points: userData.points
-      });
-      
       // First, check if user exists and get current points
-      console.log('Checking if user exists with user_id:', userData.user_id);
-      
       let currentUser;
       const { data: userFromDB, error: fetchError } = await supabase
         .from('user')
@@ -106,12 +94,10 @@ export default function ReviewSystem({
           return;
         }
         
-        console.log('Found user by email, using user_id:', userByEmail.user_id);
         // Update userData with correct user_id
         userData.user_id = userByEmail.user_id;
         currentUser = userByEmail;
       } else {
-        console.log('Found user by user_id:', userFromDB);
         currentUser = userFromDB;
       }
 
@@ -135,8 +121,6 @@ export default function ReviewSystem({
         alert(`Failed to update points: ${updateError.message}. Please try again.`);
         return;
       }
-
-      console.log('Points updated successfully');
 
       onPointsUpdate?.(result.userData);
       setSubmitted(true);
@@ -278,7 +262,7 @@ export default function ReviewSystem({
         <h4 className="font-semibold text-white mb-2">Review Guidelines</h4>
         <ul className="text-sm text-gray-400 space-y-1">
           <li>• Be honest and constructive in your feedback</li>
-          <li>• Focus on the product's quality and your experience</li>
+          <li>• Focus on the product&apos;s quality and your experience</li>
           <li>• Avoid personal attacks or inappropriate content</li>
           <li>• Your review helps other users make informed decisions</li>
         </ul>

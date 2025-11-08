@@ -14,17 +14,12 @@ export default function SupabaseDebug({ userData }: SupabaseDebugProps) {
   const testSupabaseConnection = async () => {
     setLoading(true);
     try {
-      console.log('Testing Supabase connection...');
-      console.log('User data:', userData);
-      
       // Test 1: Check if user exists by user_id
       const { data: userById, error: userByIdError } = await supabase
         .from('user')
         .select('*')
         .eq('user_id', userData?.user_id)
         .single();
-      
-      console.log('User by ID result:', { userById, userByIdError });
       
       // Test 2: Check if user exists by email
       const { data: userByEmail, error: userByEmailError } = await supabase
@@ -33,15 +28,11 @@ export default function SupabaseDebug({ userData }: SupabaseDebugProps) {
         .eq('email', userData?.email)
         .single();
       
-      console.log('User by email result:', { userByEmail, userByEmailError });
-      
       // Test 3: List all users (first 5)
       const { data: allUsers, error: allUsersError } = await supabase
         .from('user')
         .select('user_id, email, points')
         .limit(5);
-      
-      console.log('All users sample:', { allUsers, allUsersError });
       
       setDebugInfo({
         userById: { data: userById, error: userByIdError },
@@ -52,7 +43,7 @@ export default function SupabaseDebug({ userData }: SupabaseDebugProps) {
       
     } catch (error) {
       console.error('Debug test failed:', error);
-      setDebugInfo({ error: error.message });
+      setDebugInfo({ error: error instanceof Error ? error.message : String(error) });
     } finally {
       setLoading(false);
     }

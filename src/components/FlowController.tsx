@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { getUserData, shouldShowGuestUI, shouldShowOnboarding, shouldShowGenderHomepage, getRedirectPath, getCurrentUserData } from '../lib/userState';
+import { getUserData, shouldShowGuestUI, shouldShowOnboarding, shouldShowGenderHomepage, getRedirectPath, getCurrentUserData, UserData } from '../lib/userState';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
@@ -24,7 +24,7 @@ export default function FlowController({ children }: FlowControllerProps) {
       if (!mounted) return;
       
       try {
-        let currentUserData = null;
+        let currentUserData: UserData | null = null;
         
         if (firebaseUser) {
           // User is authenticated with Firebase, get fresh data from Supabase

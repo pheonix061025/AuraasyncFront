@@ -10,8 +10,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'ID token is required' }, { status: 400 });
     }
 
-    console.log('Received ID token (first 50 chars):', idToken.substring(0, 50) + '...');
-
     // Check Firebase Admin environment variables
     const envVars = {
       FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID ? 'Set' : 'Missing',
@@ -20,12 +18,9 @@ export async function POST(request: NextRequest) {
       NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? 'Set' : 'Missing'
     };
 
-    console.log('Firebase Admin Environment Variables:', envVars);
-
     try {
       // Try Firebase Admin verification
       const firebaseUser = await getUserDataFromToken(idToken);
-      console.log('Firebase Admin verification successful:', firebaseUser);
       
       return NextResponse.json({
         success: true,
@@ -45,7 +40,6 @@ export async function POST(request: NextRequest) {
         });
         
         const data = await response.json();
-        console.log('Firebase REST API response:', data);
         
         if (data.users && data.users[0]) {
           const firebaseUser = {
@@ -60,7 +54,7 @@ export async function POST(request: NextRequest) {
             method: 'Firebase REST API',
             user: firebaseUser,
             envVars,
-            adminError: adminError.message
+            adminError: adminError instanceof Error ? adminError.message : String(adminError)
           });
         } else {
           throw new Error('Invalid token in REST API response');
@@ -71,8 +65,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: false,
           error: 'All verification methods failed',
-          adminError: adminError.message,
-          fallbackError: fallbackError.message,
+          adminError: adminError instanceof Error ? adminError.message : String(adminError),
+          fallbackError: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
           envVars
         }, { status: 401 });
       }
@@ -81,7 +75,7 @@ export async function POST(request: NextRequest) {
     console.error('Debug auth error:', error);
     return NextResponse.json({ 
       error: 'Internal server error',
-      details: error.message 
+      details: error instanceof Error ? error.message : String(error) 
     }, { status: 500 });
   }
 }

@@ -43,13 +43,7 @@ export default function OutfitCalendarGenerator({
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  // Debug: Log received items
-  useEffect(() => {
-    console.log('Calendar generator received:', {
-      topwears: topwears.map(t => ({ name: t.name, hasImage: !!t.image, imageSize: t.image?.length })),
-      bottomwears: bottomwears.map(b => ({ name: b.name, hasImage: !!b.image, imageSize: b.image?.length }))
-    });
-  }, [topwears, bottomwears]);
+  // Items received and ready for calendar generation
 
   // Check if user has access: either already paid in this flow or has enough points
   const canGenerateCalendar = alreadyPaid || userPoints >= 500;
@@ -264,16 +258,6 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
     const topwearItem = findMatchingItem(day.outfit.topwear, topwears);
     const bottomwearItem = findMatchingItem(day.outfit.bottomwear, bottomwears);
     
-    // Debug logging
-    console.log('Matching items for day:', day.date, {
-      topwearDescription: day.outfit.topwear,
-      bottomwearDescription: day.outfit.bottomwear,
-      topwearItem: topwearItem?.name,
-      bottomwearItem: bottomwearItem?.name,
-      hasTopwearImage: !!topwearItem?.image,
-      hasBottomwearImage: !!bottomwearItem?.image
-    });
-    
     return {
       topwearImage: topwearItem?.image || null,
       bottomwearImage: bottomwearItem?.image || null,
@@ -410,9 +394,6 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
                             console.error('Failed to load wardrobe topwear image:', item.name, 'Size:', item.image?.length);
                             e.currentTarget.style.display = 'none';
                           }}
-                          onLoad={() => {
-                            console.log('Successfully loaded topwear image:', item.name);
-                          }}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-red-400">
@@ -460,9 +441,6 @@ ${day.weather ? `Weather: ${day.weather.temperature}°C, ${day.weather.condition
                           onError={(e) => {
                             console.error('Failed to load wardrobe bottomwear image:', item.name, 'Size:', item.image?.length);
                             e.currentTarget.style.display = 'none';
-                          }}
-                          onLoad={() => {
-                            console.log('Successfully loaded bottomwear image:', item.name);
                           }}
                         />
                       ) : (

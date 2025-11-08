@@ -320,11 +320,6 @@ export const ensureUserInSupabase = async (userData: any): Promise<any> => {
   try {
     const { supabase } = await import('./supabase');
     
-    console.log('🔍 Ensuring user exists in Supabase...', {
-      email: userData.email,
-      user_id: userData.user_id
-    });
-    
     // First try to find by user_id if available
     if (userData.user_id) {
       const { data: existingUser, error: userError } = await supabase
@@ -334,7 +329,6 @@ export const ensureUserInSupabase = async (userData: any): Promise<any> => {
         .single();
         
       if (!userError && existingUser) {
-        console.log('✅ User found by user_id:', existingUser);
         return { ...userData, user_id: existingUser.user_id };
       }
     }
@@ -347,12 +341,10 @@ export const ensureUserInSupabase = async (userData: any): Promise<any> => {
       .single();
       
     if (!emailError && userByEmail) {
-      console.log('✅ User found by email:', userByEmail);
       return { ...userData, user_id: userByEmail.user_id };
     }
     
     // User doesn't exist, create them
-    console.log('🔧 Creating new user in Supabase...');
     const { data: newUser, error: createError } = await supabase
       .from('user')
       .insert({
@@ -377,7 +369,6 @@ export const ensureUserInSupabase = async (userData: any): Promise<any> => {
       return userData; // Return original data if creation fails
     }
     
-    console.log('✅ New user created:', newUser);
     return { ...userData, user_id: newUser.user_id };
     
   } catch (error) {
@@ -392,12 +383,6 @@ export const savePointsToSupabase = async (userData: any, transaction: PointsTra
     // Import supabase dynamically to avoid SSR issues
     const { supabase } = await import('./supabase');
     
-    console.log('🔍 Debug: savePointsToSupabase called with:', {
-      user_id: userData.user_id,
-      transaction: transaction,
-      userData: userData
-    });
-    
     // Ensure user exists in Supabase first
     const userWithId = await ensureUserInSupabase(userData);
     
@@ -407,7 +392,6 @@ export const savePointsToSupabase = async (userData: any, transaction: PointsTra
     }
 
     // Save transaction to Supabase
-    console.log('💾 Saving transaction to Supabase...');
     const { error: transactionError } = await supabase
       .from('points_transactions')
       .insert({
@@ -422,11 +406,7 @@ export const savePointsToSupabase = async (userData: any, transaction: PointsTra
       return false;
     }
 
-    console.log('✅ Transaction saved successfully');
-
     // Update user points in Supabase
-    console.log('🔄 Updating user points in Supabase...');
-    
     // First, get current points
     const { data: currentUser, error: fetchError } = await supabase
       .from('user')
@@ -454,7 +434,6 @@ export const savePointsToSupabase = async (userData: any, transaction: PointsTra
       return false;
     }
 
-    console.log('✅ Points successfully saved to Supabase:', transaction);
     return true;
   } catch (error) {
     console.error('❌ Error in savePointsToSupabase:', error);
@@ -468,12 +447,6 @@ export const syncLocalPointsToSupabase = async (userData: any): Promise<boolean>
     // Import supabase dynamically to avoid SSR issues
     const { supabase } = await import('./supabase');
     
-    console.log('🔄 Debug: syncLocalPointsToSupabase called with:', {
-      user_id: userData.user_id,
-      localPoints: userData.points,
-      userData: userData
-    });
-    
     // Ensure user exists in Supabase first
     const userWithId = await ensureUserInSupabase(userData);
     
@@ -483,7 +456,6 @@ export const syncLocalPointsToSupabase = async (userData: any): Promise<boolean>
     }
 
     // Get current points from Supabase
-    console.log('🔍 Fetching current points from Supabase...');
     const { data: supabaseUser, error: fetchError } = await supabase
       .from('user')
       .select('points')
@@ -498,17 +470,9 @@ export const syncLocalPointsToSupabase = async (userData: any): Promise<boolean>
     const localPoints = userData.points || 0;
     const supabasePoints = supabaseUser?.points || 0;
 
-    console.log('📊 Points comparison:', {
-      localPoints,
-      supabasePoints,
-      difference: localPoints - supabasePoints
-    });
-
     // If local points are higher, sync them to Supabase
     if (localPoints > supabasePoints) {
       const pointsDifference = localPoints - supabasePoints;
-      
-      console.log(`🔄 Syncing ${pointsDifference} points to Supabase...`);
       
       // Update user points in Supabase
       const { error: updateError } = await supabase
@@ -523,8 +487,6 @@ export const syncLocalPointsToSupabase = async (userData: any): Promise<boolean>
         console.error('❌ Error syncing points to Supabase:', updateError);
         return false;
       }
-
-      console.log('✅ Points synced successfully');
 
       // Create a sync transaction record
       const { error: transactionError } = await supabase
@@ -541,11 +503,9 @@ export const syncLocalPointsToSupabase = async (userData: any): Promise<boolean>
         // Don't return false here as the main sync was successful
       }
 
-      console.log(`✅ Synced ${pointsDifference} points from local storage to Supabase`);
       return true;
     }
 
-    console.log('✅ Points are already in sync with Supabase');
     return true;
   } catch (error) {
     console.error('❌ Error in syncLocalPointsToSupabase:', error);

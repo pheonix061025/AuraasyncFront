@@ -42,61 +42,32 @@ function validateImage(base64: string, mimeType: string): { valid: boolean; erro
 }
 
 // Compress image to reduce token usage while maintaining quality for analysis
+// Note: Server-side compression is limited - images should be compressed client-side before sending
 async function compressImage(base64: string, mimeType: string, maxSizeKB: number = 80, analysisMode?: string): Promise<string> {
 	try {
-		// Convert base64 to blob
-		const byteCharacters = atob(base64);
-		const byteNumbers = new Array(byteCharacters.length);
-		for (let i = 0; i < byteCharacters.length; i++) {
-			byteNumbers[i] = byteCharacters.charCodeAt(i);
-		}
-		const byteArray = new Uint8Array(byteNumbers);
-		const blob = new Blob([byteArray], { type: mimeType });
+		// Calculate approximate size (base64 is ~33% larger than binary)
+		const sizeInBytes = (base64.length * 3) / 4;
+		const sizeInKB = sizeInBytes / 1024;
 		
-		// Check if already small enough
-		if (blob.size <= maxSizeKB * 1024) {
+		// If already small enough, return as-is
+		if (sizeInKB <= maxSizeKB) {
 			return base64;
 		}
 		
-		// Create canvas for compression
-		const canvas = document.createElement('canvas');
-		const ctx = canvas.getContext('2d');
-		if (!ctx) return base64;
-		
-		const img = new Image();
-		await new Promise((resolve, reject) => {
-			img.onload = resolve;
-			img.onerror = reject;
-			img.src = `data:${mimeType};base64,${base64}`;
-		});
-		
-		// Calculate new dimensions (optimized for accuracy vs cost)
-		const maxDimension = analysisMode === "face_skin" ? 400 : 500; // Reduced for lower token usage
-		let { width, height } = img;
-		if (width > height) {
-			if (width > maxDimension) {
-				height = (height * maxDimension) / width;
-				width = maxDimension;
-			}
-		} else {
-			if (height > maxDimension) {
-				width = (width * maxDimension) / height;
-				height = maxDimension;
-			}
+		// Server-side: For large images, we can't compress without a library like sharp
+		// In production, consider using sharp for server-side image processing
+		// For now, we'll truncate if extremely large or return original
+		if (sizeInKB > maxSizeKB * 2) {
+			console.warn(`Image size (${sizeInKB.toFixed(2)}KB) exceeds limit (${maxSizeKB}KB). Consider compressing client-side.`);
+			// Truncate base64 if extremely large (last resort)
+			const maxLength = Math.floor((maxSizeKB * 1024 * 4) / 3);
+			return base64.substring(0, maxLength);
 		}
 		
-		canvas.width = width;
-		canvas.height = height;
-		ctx.drawImage(img, 0, 0, width, height);
-		
-		// Convert back to base64 with compression (optimized for accuracy vs tokens)
-		const quality = 0.7; // Reduced quality for lower token usage
-		const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-		const compressedBase64 = compressedDataUrl.split(',')[1];
-		
-		return compressedBase64;
+		// Return original if within reasonable limits
+		return base64;
 	} catch (error) {
-		console.warn('Image compression failed, using original:', error);
+		console.warn('Image compression check failed, using original:', error);
 		return base64;
 	}
 }
@@ -449,13 +420,6 @@ export async function POST(req: Request) {
 		// Track token usage for monitoring
 		const usage = result.response.usageMetadata;
 		const totalTokens = usage?.totalTokenCount || 0;
-		console.log("/api/gemini usage:", {
-			promptTokens: usage?.promptTokenCount || 0,
-			completionTokens: usage?.candidatesTokenCount || 0,
-			totalTokens,
-			mode,
-			model: model.model
-		});
 		
 		// Update usage stats
 		if (!globalAny.__geminiUsageStats) {
@@ -473,8 +437,6 @@ export async function POST(req: Request) {
 		stats.totalTokens += totalTokens;
 		if (mode === "face_skin") stats.faceRequests++;
 		if (mode === "body_shape") stats.bodyRequests++;
-		// Debug log to verify model output server-side
-		console.log("/api/gemini raw response:", text?.slice(0, 500));
 		const parsed = safeJsonParse<any>(text);
 
 		if (!parsed) {

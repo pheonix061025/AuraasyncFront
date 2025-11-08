@@ -2,7 +2,7 @@
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 
-let adminApp: App;
+let adminApp: App | undefined;
 
 if (!getApps().length) {
   const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -22,6 +22,8 @@ if (!getApps().length) {
       }),
     });
   }
+} else {
+  adminApp = getApps()[0];
 }
 
 export const adminAuth = adminApp ? getAuth(adminApp) : undefined;
