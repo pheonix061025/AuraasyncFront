@@ -514,7 +514,7 @@ export default function Onboarding() {
     const [localName, setLocalName] = useState(userData.name || "");
     const [localGender, setLocalGender] = useState(userData.gender || "");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (localName && localGender) {
         const updatedData = {
@@ -529,6 +529,39 @@ export default function Onboarding() {
 
         // Update localStorage with the new data
         localStorage.setItem('aurasync_user_data', JSON.stringify(updatedData));
+
+        // Also save to database
+        try {
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            const idToken = await currentUser.getIdToken();
+            
+            const response = await fetch('/api/user', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${idToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                email: updatedData.email,
+                name: updatedData.name,
+                gender: updatedData.gender,
+                location: updatedData.location || 'Mumbai',
+                skin_tone: updatedData.skin_tone || '',
+                face_shape: updatedData.face_shape || null,
+                body_shape: updatedData.body_shape || null,
+                personality: updatedData.personality || null,
+                onboarding_completed: updatedData.onboarding_completed || false
+              })
+            });
+            
+            if (!response.ok) {
+              console.error('Failed to save gender to database');
+            }
+          }
+        } catch (error) {
+          console.error('Error saving gender to database:', error);
+        }
 
         setCurrentStep(STEPS.SKIN_FACE_ANALYSIS);
       }
