@@ -307,9 +307,10 @@ export function RewardModal({ onClose, userData, onPointsUpdate }: RewardModalPr
         alert('Come back tomorrow to claim your daily login bonus!');
         break;
       case 'referral':
-        console.log('Showing referral message');
-        // Could scroll to referral section or show referral modal
-        alert('Share your referral link with friends to earn 150 coins per referral!');
+        console.log('Redirecting to referral page');
+        // Redirect to referral page
+        router.push('/referral');
+        if (onClose) onClose();
         break;
       case 'review':
         console.log('Opening review popup');

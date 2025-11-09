@@ -56,6 +56,13 @@ export const POINTS_ACTIONS: Record<string, PointsAction> = {
     description: 'Earned for referring a friend',
     category: 'social'
   },
+  REFERRAL_BONUS: {
+    id: 'referral_bonus',
+    name: 'Referral Bonus',
+    points: 50,
+    description: 'Earned for using a referral code',
+    category: 'social'
+  },
   REVIEW: {
     id: 'review',
     name: 'Product Review',
