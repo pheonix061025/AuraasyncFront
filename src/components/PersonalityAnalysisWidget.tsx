@@ -389,7 +389,8 @@ const PersonalityAnalysisWidget: React.FC<PersonalityAnalysisWidgetProps> = ({
     if (step > 0) setStep((s) => s - 1);
   };
   return (
-    <div className="flex flex-col items-center justify-center text-white p-4">
+    <div className="flex flex-col items-center text-white p-4 min-h-screen">
+
       {!showResult ? (
         <div className="w-full">
           <AnimatePresence mode="wait">
@@ -399,7 +400,7 @@ const PersonalityAnalysisWidget: React.FC<PersonalityAnalysisWidgetProps> = ({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.4 }}
-              className="bg-[#353333] p-8 rounded-3xl shadow-lg w-full md:w-[80vw] mx-auto"
+              className="bg-[#353333] p-8 overflow-y-auto max-h-[90vh] rounded-3xl shadow-lg w-full md:w-[80vw] h-auto mx-auto"
             >
               {/* Progress Bar */}
               <div className="mb-8">
