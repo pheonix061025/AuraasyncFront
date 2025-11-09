@@ -10,6 +10,8 @@ import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 import { pointsManager, savePointsToSupabase } from "@/lib/pointsSystem"
 import { useRouter } from "next/navigation"
+import ReviewPopup from "./ReviewPopup"
+import { useReviewPopup } from "@/hooks/useReviewPopup"
 
 
 interface Task {
@@ -35,13 +37,9 @@ export function RewardModal({ onClose, userData, onPointsUpdate }: RewardModalPr
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  const router=useRouter()
+  const router = useRouter()
+  const reviewPopup = useReviewPopup()
   
-  useEffect(() => {
-    setMounted(true)
-    fetchFreshUserData()
-  }, [])
-
   // Fetch fresh data from Supabase when modal opens
   const fetchFreshUserData = async () => {
     if (!userData?.user_id) {
@@ -75,6 +73,12 @@ export function RewardModal({ onClose, userData, onPointsUpdate }: RewardModalPr
     
     loadTasksData()
   }
+  
+  useEffect(() => {
+    setMounted(true)
+    fetchFreshUserData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (userData?.points !== undefined) {
@@ -120,6 +124,15 @@ export function RewardModal({ onClose, userData, onPointsUpdate }: RewardModalPr
         t => t.action === 'DAILY_LOGIN' && t.created_at?.startsWith(today)
       ) || false;
 
+      // Check if user has submitted any reviews
+      const { data: reviews, error: reviewError } = await supabase
+        .from('reviews')
+        .select('id')
+        .eq('user_id', userData.user_id)
+        .limit(1);
+
+      const hasSubmittedReview = !reviewError && reviews && reviews.length > 0;
+
       const taskList: Task[] = [
         { 
           id: "signup", 
@@ -162,9 +175,9 @@ export function RewardModal({ onClose, userData, onPointsUpdate }: RewardModalPr
           action: "Writing a review", 
           points: 50, 
           icon: <MessageSquare className="w-4 h-4" />,
-          completed: false, // Would need to check reviews table
+          completed: hasSubmittedReview,
           claimed: claimedActions.has('REVIEW') || claimedActions.has('review'),
-          canClaim: false
+          canClaim: hasSubmittedReview && !claimedActions.has('REVIEW') && !claimedActions.has('review')
         },
       ]
 
@@ -266,6 +279,49 @@ export function RewardModal({ onClose, userData, onPointsUpdate }: RewardModalPr
     }
   }
 
+  // Handle clicking on incomplete tasks to redirect or open appropriate action
+  const handleIncompleteTask = (task: Task) => {
+    console.log('handleIncompleteTask called for task:', task.id, task);
+    
+    if (task.completed || task.claimed) {
+      console.log('Task already completed or claimed, ignoring');
+      return;
+    }
+
+    switch (task.id) {
+      case 'signup':
+        console.log('Redirecting to onboarding');
+        // Redirect to onboarding
+        router.push('/onboarding');
+        if (onClose) onClose();
+        break;
+      case 'analysis_complete':
+        console.log('Redirecting to analysis');
+        // Redirect to analysis page
+        router.push('/onboarding');
+        if (onClose) onClose();
+        break;
+      case 'daily_login':
+        console.log('Showing daily login message');
+        // Daily login can't be forced, just show message
+        alert('Come back tomorrow to claim your daily login bonus!');
+        break;
+      case 'referral':
+        console.log('Showing referral message');
+        // Could scroll to referral section or show referral modal
+        alert('Share your referral link with friends to earn 150 coins per referral!');
+        break;
+      case 'review':
+        console.log('Opening review popup');
+        // Open review popup - use forceShow to bypass restrictions
+        reviewPopup.forceShow('rewards_incentive');
+        break;
+      default:
+        console.log('Unknown task type:', task.id);
+        break;
+    }
+  }
+
   if (!mounted) return null
 
   const modalContent = (
@@ -351,8 +407,14 @@ export function RewardModal({ onClose, userData, onPointsUpdate }: RewardModalPr
                           ? 'bg-green-500/10 border-green-500/30' 
                           : task.completed && task.canClaim
                           ? 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20'
-                          : 'bg-white/5 border-white/10'
+                          : 'bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer'
                       }`}
+                      onClick={(e) => {
+                        console.log('Task card clicked:', task.id, 'completed:', task.completed, 'claimed:', task.claimed);
+                        if (!task.completed && !task.claimed) {
+                          handleIncompleteTask(task);
+                        }
+                      }}
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className={`flex-shrink-0 ${task.claimed ? 'text-green-400' : task.completed ? 'text-amber-400' : 'text-gray-400'}`}>
@@ -389,9 +451,18 @@ export function RewardModal({ onClose, userData, onPointsUpdate }: RewardModalPr
                         )}
                         
                         {!task.completed && !task.claimed && (
-                          <div className="flex items-center gap-1 text-gray-500 text-xs">
-                            <span>Incomplete</span>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              console.log('Complete Task button clicked for:', task.id);
+                              handleIncompleteTask(task);
+                            }}
+                            className="flex items-center gap-1 text-amber-400 text-xs hover:text-amber-300 transition-colors font-medium hover:underline"
+                          >
+                            <span>Complete Task →</span>
+                          </button>
                         )}
                       </div>
                     </div>
@@ -474,6 +545,20 @@ export function RewardModal({ onClose, userData, onPointsUpdate }: RewardModalPr
           </div>
         </div>
       </div>
+
+      {/* Review Popup */}
+      <ReviewPopup
+        isOpen={reviewPopup.isOpen}
+        onClose={reviewPopup.closePopup}
+        onRateNow={async (rating, feedback) => {
+          await reviewPopup.handleRateNow(rating, feedback);
+          // Reload tasks after review submission to update status
+          loadTasksData();
+        }}
+        onRemindLater={reviewPopup.handleRemindLater}
+        onNeverShow={reviewPopup.handleNeverShow}
+        triggerAction={reviewPopup.triggerAction}
+      />
     </div>
   )
 

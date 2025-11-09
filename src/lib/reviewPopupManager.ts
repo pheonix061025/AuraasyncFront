@@ -11,6 +11,7 @@ export interface ReviewPopupPreferences {
     onboarding_complete: boolean;
     outfit_pairing: boolean;
     daily_login: boolean;
+    rewards_incentive?: boolean; // Optional for backward compatibility
   };
 }
 
@@ -65,7 +66,8 @@ export class ReviewPopupManager {
         analysis_complete: true,
         onboarding_complete: true,
         outfit_pairing: true,
-        daily_login: false
+        daily_login: false,
+        rewards_incentive: true // Allow review popup from rewards modal
       }
     };
   }
@@ -131,7 +133,7 @@ export class ReviewPopupManager {
   }
 
   // Handle review submission
-  handleReviewSubmission(rating: number, feedback: string, triggerAction: string): void {
+  async handleReviewSubmission(rating: number, feedback: string, triggerAction: string): Promise<void> {
     const reviewData: ReviewData = {
       rating,
       feedback,
@@ -142,11 +144,126 @@ export class ReviewPopupManager {
     this.reviewData.push(reviewData);
     this.markPopupShown();
 
-    // Save review data
+    // Save review data locally
     this.saveReviewData();
+
+    // Save to Supabase database
+    await this.saveReviewToDatabase(rating, feedback, triggerAction);
 
     // Award points for review
     this.awardReviewPoints(rating);
+  }
+
+  // Save review to Supabase database
+  private async saveReviewToDatabase(rating: number, feedback: string, triggerAction: string): Promise<void> {
+    if (typeof window === 'undefined') return;
+
+    try {
+      // Try multiple ways to get user_id
+      let user_id = null;
+      
+      // Method 1: Check aurasync_user_data (with single 'a')
+      try {
+        const userData = JSON.parse(localStorage.getItem('aurasync_user_data') || '{}');
+        user_id = userData.user_id || userData.id;
+        console.log('User data from aurasync_user_data:', userData);
+      } catch (e) {
+        console.warn('Failed to parse aurasync_user_data:', e);
+      }
+
+      // Method 1b: Check auraasync_user_data (with double 'a' - typo variation)
+      if (!user_id) {
+        try {
+          const userData = JSON.parse(localStorage.getItem('auraasync_user_data') || '{}');
+          user_id = userData.user_id || userData.id;
+          console.log('User data from auraasync_user_data:', userData);
+        } catch (e) {
+          console.warn('Failed to parse auraasync_user_data:', e);
+        }
+      }
+
+      // Method 2: Check other possible localStorage keys
+      if (!user_id) {
+        try {
+          const authData = JSON.parse(localStorage.getItem('auth_user') || '{}');
+          user_id = authData.user_id || authData.id || authData.uid;
+          console.log('User data from auth_user:', authData);
+        } catch (e) {
+          console.warn('Failed to parse auth_user:', e);
+        }
+      }
+
+      // Method 3: Check all localStorage keys for user data
+      if (!user_id) {
+        console.log('Checking all localStorage keys...');
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          console.log(`localStorage[${key}]:`, localStorage.getItem(key || ''));
+        }
+      }
+
+      if (!user_id) {
+        console.error('No user_id found in localStorage. Available keys:', Object.keys(localStorage));
+        alert('Please log in again to submit reviews. User session not found.');
+        return;
+      }
+
+      console.log('Using user_id:', user_id);
+
+      // Prepare review data for API
+      const reviewPayload = {
+        user_id: user_id,
+        product_id: 'aurasync-app', // General app review
+        product_name: 'AuraSync Application',
+        review_text: feedback || `User rated ${rating} stars`, // Required field
+        feedback: feedback || '', // Optional additional feedback field
+        rating: rating,
+        points_awarded: this.calculateReviewPoints(rating),
+        trigger_action: triggerAction
+      };
+
+      console.log('Sending review to API:', reviewPayload);
+
+      // Send to API
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reviewPayload)
+      });
+
+      const responseText = await response.text();
+      console.log('API Response Status:', response.status);
+      console.log('API Response Text:', responseText);
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          errorData = { error: responseText };
+        }
+        console.error('API error response:', errorData);
+        alert(`Failed to save review: ${errorData.error || 'Unknown error'}. Please check console for details.`);
+        throw new Error(errorData.error || 'Failed to save review');
+      }
+
+      const savedReview = JSON.parse(responseText);
+      console.log('Review saved to database successfully:', savedReview);
+      alert('Review submitted successfully! You earned ' + this.calculateReviewPoints(rating) + ' coins!');
+    } catch (error) {
+      console.error('Error saving review to database:', error);
+      // Don't throw error - review is still saved locally
+    }
+  }
+
+  // Calculate points for review based on rating
+  private calculateReviewPoints(rating: number): number {
+    // Award more points for higher ratings
+    const basePoints = 50; // Base points for any review
+    const bonusPoints = rating >= 4 ? 25 : 0; // Bonus for good reviews
+    return basePoints + bonusPoints;
   }
 
   // Save review data to localStorage
@@ -263,6 +380,6 @@ export const handleReviewPopupNeverShow = (): void => {
   reviewPopupManager.handleNeverShow();
 };
 
-export const handleReviewSubmission = (rating: number, feedback: string, triggerAction: string): void => {
-  reviewPopupManager.handleReviewSubmission(rating, feedback, triggerAction);
+export const handleReviewSubmission = async (rating: number, feedback: string, triggerAction: string): Promise<void> => {
+  await reviewPopupManager.handleReviewSubmission(rating, feedback, triggerAction);
 };

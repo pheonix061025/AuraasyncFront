@@ -173,11 +173,13 @@ export default function Dashboard() {
               "Dashboard - Latest user data from Supabase:",
               latestUserData
             );
-            // Use Supabase data for analysis fields (they're the source of truth)
+            // Use Supabase data for all fields (they're the source of truth)
             setUserData({
               ...dailyLoginResult.userData,
               points: latestUserData.points,
               user_id: latestUserData.user_id,
+              gender: latestUserData.gender || dailyLoginResult.userData.gender,
+              location: latestUserData.location || dailyLoginResult.userData.location,
               skin_tone: latestUserData.skin_tone || dailyLoginResult.userData.skin_tone,
               face_shape: latestUserData.face_shape || dailyLoginResult.userData.face_shape,
               body_shape: latestUserData.body_shape || dailyLoginResult.userData.body_shape,
@@ -244,11 +246,13 @@ export default function Dashboard() {
             .single();
 
           if (!fetchError && latestUserData) {
-            // Use Supabase data for analysis fields (they're the source of truth)
+            // Use Supabase data for all fields (they're the source of truth)
             setUserData({
               ...dailyLoginResult.userData,
               points: latestUserData.points,
               user_id: latestUserData.user_id,
+              gender: latestUserData.gender || dailyLoginResult.userData.gender,
+              location: latestUserData.location || dailyLoginResult.userData.location,
               skin_tone: latestUserData.skin_tone || dailyLoginResult.userData.skin_tone,
               face_shape: latestUserData.face_shape || dailyLoginResult.userData.face_shape,
               body_shape: latestUserData.body_shape || dailyLoginResult.userData.body_shape,

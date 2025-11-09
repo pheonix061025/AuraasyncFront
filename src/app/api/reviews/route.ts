@@ -34,30 +34,47 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { user_id, product_id, product_name, review_text, rating, points_awarded } = body;
+    const { user_id, product_id, product_name, review_text, rating, points_awarded, trigger_action, feedback } = body;
 
     if (!user_id || !product_id || !review_text || !rating) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     // Create review
+    const reviewInsert: any = {
+      user_id: parseInt(user_id),
+      product_id,
+      product_name,
+      review_text,
+      rating: parseInt(rating),
+      points_awarded: points_awarded || 0
+    };
+
+    // Add trigger_action if the column exists (optional for backward compatibility)
+    if (trigger_action) {
+      reviewInsert.trigger_action = trigger_action;
+    }
+
+    // Add feedback if provided (optional field in schema)
+    if (feedback) {
+      reviewInsert.feedback = feedback;
+    }
+
+    console.log('Inserting review to database:', reviewInsert);
+
     const { data: review, error: reviewError } = await supabase
       .from('reviews')
-      .insert({
-        user_id: parseInt(user_id),
-        product_id,
-        product_name,
-        review_text,
-        rating: parseInt(rating),
-        points_awarded: points_awarded || 0
-      })
+      .insert(reviewInsert)
       .select()
       .single();
 
     if (reviewError) {
       console.error('Error creating review:', reviewError);
-      return NextResponse.json({ error: 'Failed to create review' }, { status: 500 });
+      console.error('Review insert data:', reviewInsert);
+      return NextResponse.json({ error: 'Failed to create review', details: reviewError.message }, { status: 500 });
     }
+
+    console.log('Review successfully created:', review);
 
     // If points were awarded, create a transaction
     if (points_awarded && points_awarded > 0) {
