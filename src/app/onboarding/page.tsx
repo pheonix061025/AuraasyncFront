@@ -99,6 +99,9 @@ export default function Onboarding() {
   const singleMode = searchParams?.get('mode') === 'single';
   const singleTarget = (searchParams?.get('target') as 'skin' | 'face' | 'body' | 'personality' | null) || null;
   
+  // Add loading state to prevent flash of login screen
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  
   // Review popup hook
   const reviewPopup = useAutoReviewPopup();
   
@@ -121,15 +124,18 @@ export default function Onboarding() {
           
           if (response.ok) {
             const userData = await response.json();
+            console.log('User data from API:', userData)
             
             // If user has completed onboarding, redirect to appropriate gender page
-            if (userData.onboarding_completed && userData.gender) {
+            if (userData.onboarding_completed && userData.gender){
+              console.log('Redirecting to gender page:', userData.gender);
               router.replace(userData.gender === 'male' ? '/male' : '/female');
               return;
             }
             
             // If user exists but hasn't completed onboarding, set their data and go to basic info
             if (userData && !userData.onboarding_completed) {
+              console.log('User exists but onboarding not completed, going to basic info');
               setUserDataState({
                 email: userData.email || firebaseUser.email || "",
                 name: userData.name || firebaseUser.displayName || "",
@@ -142,12 +148,20 @@ export default function Onboarding() {
                 onboarding_completed: false,
               });
               setCurrentStep(STEPS.BASIC_INFO);
+              setIsCheckingAuth(false);
             }
+          } else {
+            console.log('User API returned non-OK status');
+            setIsCheckingAuth(false);
           }
         } catch (error) {
           console.error('Error checking user status:', error);
           // If there's an error, continue with normal flow
+          setIsCheckingAuth(false);
         }
+      } else {
+        // No user logged in or in single mode
+        setIsCheckingAuth(false);
       }
     });
     
@@ -3633,64 +3647,103 @@ export default function Onboarding() {
   // Step 6: Complete Component
   const CompleteStep = ({ userData }: any) => {
     const handleComplete = async () => {
-      // Award points for completing full onboarding
-      const onboardingResult = awardOnboardingPoints(userData);
-      const completedUserData = { ...onboardingResult.userData, onboarding_completed: true };
-      
-      // Save points to Supabase if user_id is available
-      if (completedUserData.user_id) {
-        await savePointsToSupabase(completedUserData, onboardingResult.transaction);
-      }
-      
-      markOnboardingCompleted();
-
-      // Show review popup after onboarding completion
-      setTimeout(() => {
-        reviewPopup.showAfterOnboarding();
-      }, 2000);
-
-      // Complete onboarding by sending all user data to your local API
       try {
+        console.log('🎯 handleComplete called');
+        console.log('📊 userData:', userData);
+        
+        // Award points for completing full onboarding
+        const onboardingResult = awardOnboardingPoints(userData);
+        const completedUserData = { ...onboardingResult.userData, onboarding_completed: true };
+        
+        console.log('✅ completedUserData:', completedUserData);
+        
+        // Save points to Supabase if user_id is available
+        if (completedUserData.user_id) {
+          await savePointsToSupabase(completedUserData, onboardingResult.transaction);
+        }
+        
+        markOnboardingCompleted();
+
+        // Show review popup after onboarding completion
+        setTimeout(() => {
+          reviewPopup.showAfterOnboarding();
+        }, 2000);
+
+        // Complete onboarding by sending all user data to your local API
         const currentUser = auth.currentUser;
-        if (currentUser) {
-          const idToken = await currentUser.getIdToken();
+        console.log('👤 Current user:', currentUser?.email);
+        
+        if (!currentUser) {
+          console.error('❌ No current user found');
+          alert('No user logged in. Please login again.');
+          router.push('/onboarding');
+          return;
+        }
+        
+        const idToken = await currentUser.getIdToken();
+        
+        console.log('📤 Sending data to API:', {
+          email: completedUserData.email,
+          name: completedUserData.name,
+          gender: completedUserData.gender,
+          location: completedUserData.location || "Mumbai",
+          skin_tone: completedUserData.skin_tone,
+          face_shape: completedUserData.face_shape,
+          body_shape: completedUserData.body_shape,
+          personality: completedUserData.personality,
+          onboarding_completed: true
+        });
 
-          const response = await fetch('/api/user', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${idToken}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              email: completedUserData.email,
-              name: completedUserData.name,
-              gender: completedUserData.gender,
-              location: completedUserData.location || "Mumbai",
-              skin_tone: completedUserData.skin_tone,
-              face_shape: completedUserData.face_shape,
-              body_shape: completedUserData.body_shape,
-              personality: completedUserData.personality,
-              onboarding_completed: true
-            })
-          });
+        const response = await fetch('/api/user', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: completedUserData.email,
+            name: completedUserData.name,
+            gender: completedUserData.gender,
+            location: completedUserData.location || "Mumbai",
+            skin_tone: completedUserData.skin_tone,
+            face_shape: completedUserData.face_shape,
+            body_shape: completedUserData.body_shape,
+            personality: completedUserData.personality,
+            onboarding_completed: true
+          })
+        });
 
-          if (response.ok) {
-            const updatedUserData = await response.json();
-            
-            // Update local state with fresh data
-            setUserData(updatedUserData);
-            setUserDataState(updatedUserData);
-            
-            // Redirect to gender-specific page
-            router.push(completedUserData.gender === "male" ? "/male" : "/female");
-          } else {
-            throw new Error('Failed to complete onboarding');
-          }
+        console.log('📥 API response status:', response.status);
+
+        if (response.ok) {
+          const updatedUserData = await response.json();
+          console.log('✅ Updated user data from API:', updatedUserData);
+          
+          // Update local state with fresh data
+          setUserData(updatedUserData);
+          setUserDataState(updatedUserData);
+          
+          // Redirect to gender-specific page
+          const redirectPath = completedUserData.gender === "male" ? "/male" : "/female";
+          console.log('🚀 Redirecting to:', redirectPath);
+          router.push(redirectPath);
+        } else {
+          const errorText = await response.text();
+          console.error('❌ API error response:', errorText);
+          throw new Error('Failed to complete onboarding: ' + errorText);
         }
       } catch (error) {
-        console.error('Failed to complete onboarding:', error);
+        console.error('❌ ERROR in handleComplete:', error);
+        alert('An error occurred. Redirecting anyway...');
         // Still redirect even if API fails
-        router.push(completedUserData.gender === "male" ? "/male" : "/female");
+        const redirectPath = userData?.gender === "male" ? "/male" : "/female";
+        console.log('🚀 Redirecting anyway to:', redirectPath);
+        if (redirectPath && userData?.gender) {
+          router.push(redirectPath);
+        } else {
+          console.error('❌ No gender set, cannot redirect');
+          alert('Please complete all steps including gender selection.');
+        }
       }
     };
 
@@ -3717,8 +3770,11 @@ export default function Onboarding() {
             </p>
 
             <button
-              onClick={handleComplete}
-              className="text-white bg-blue-600 px-8 py-4 rounded-lg font-semibold text-lg hover:from-blue-600 hover:to-purple-700 transition-all"
+              onClick={() => {
+                console.log('🔘 Button clicked!');
+                handleComplete();
+              }}
+              className="text-white bg-blue-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-all cursor-pointer z-50 relative"
             >
               Start Exploring
             </button>
@@ -3765,8 +3821,11 @@ export default function Onboarding() {
             </p>
 
             <button
-              onClick={handleComplete}
-              className="text-white bg-blue-600 px-6 py-3 rounded-lg font-semibold text-base hover:from-blue-600 hover:to-purple-700 transition-all"
+              onClick={() => {
+                console.log('🔘 Mobile Button clicked!');
+                handleComplete();
+              }}
+              className="text-white bg-blue-600 px-6 py-3 rounded-lg font-semibold text-base hover:bg-blue-700 transition-all cursor-pointer z-50 relative"
             >
               Start Exploring
             </button>
@@ -3779,62 +3838,80 @@ export default function Onboarding() {
   // Render current step
   return (
     <AnimatePresence mode="wait">
-      {currentStep === STEPS.LOGIN && <LoginStep key="login" />}
+      {/* Show loading screen while checking authentication */}
+      {isCheckingAuth ? (
+        <motion.div
+          key="checking-auth"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center"
+        >
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+            <p className="text-white text-lg">Checking your account...</p>
+          </div>
+        </motion.div>
+      ) : (
+        <>
+          {currentStep === STEPS.LOGIN && <LoginStep key="login" />}
 
-      {currentStep === STEPS.BASIC_INFO && (
-        <BasicInfoStep
-          key="basic_info"
-          userData={userData}
-          updateUserData={updateUserData}
-          setUserDataState={setUserDataState}
-          setCurrentStep={setCurrentStep}
-          STEPS={STEPS}
-        />
-      )}
+          {currentStep === STEPS.BASIC_INFO && (
+            <BasicInfoStep
+              key="basic_info"
+              userData={userData}
+              updateUserData={updateUserData}
+              setUserDataState={setUserDataState}
+              setCurrentStep={setCurrentStep}
+              STEPS={STEPS}
+            />
+          )}
 
-      {currentStep === STEPS.SKIN_FACE_ANALYSIS && (
-        <SkinFaceAnalysisStep
-          key="skin_analysis"
-          userData={userData}
-          setUserDataState={setUserDataState}
-          setCurrentStep={setCurrentStep}
-          STEPS={STEPS}
-        />
-      )}
+          {currentStep === STEPS.SKIN_FACE_ANALYSIS && (
+            <SkinFaceAnalysisStep
+              key="skin_analysis"
+              userData={userData}
+              setUserDataState={setUserDataState}
+              setCurrentStep={setCurrentStep}
+              STEPS={STEPS}
+            />
+          )}
 
-      {currentStep === STEPS.BODY_ANALYSIS && (
-        <BodyAnalysisStep
-          key="body_analysis"
-          userData={userData}
-          setUserDataState={setUserDataState}
-          setCurrentStep={setCurrentStep}
-          STEPS={STEPS}
-        />
-      )}
+          {currentStep === STEPS.BODY_ANALYSIS && (
+            <BodyAnalysisStep
+              key="body_analysis"
+              userData={userData}
+              setUserDataState={setUserDataState}
+              setCurrentStep={setCurrentStep}
+              STEPS={STEPS}
+            />
+          )}
 
-      {currentStep === STEPS.PERSONALITY_ANALYSIS && (
-        <PersonalityAnalysisStep
-          key="personality_analysis"
-          userData={userData}
-          setUserDataState={setUserDataState}
-          setCurrentStep={setCurrentStep}
-          STEPS={STEPS}
-        />
-      )}
+          {currentStep === STEPS.PERSONALITY_ANALYSIS && (
+            <PersonalityAnalysisStep
+              key="personality_analysis"
+              userData={userData}
+              setUserDataState={setUserDataState}
+              setCurrentStep={setCurrentStep}
+              STEPS={STEPS}
+            />
+          )}
 
-      {currentStep === STEPS.COMPLETE && (
-        <CompleteStep key="complete" userData={userData} />
+          {currentStep === STEPS.COMPLETE && (
+            <CompleteStep key="complete" userData={userData} />
+          )}
+        </>
       )}
 
       {/* Review Popup */}
-      <ReviewPopup
+    {/* <ReviewPopup
         isOpen={reviewPopup.isOpen}
         onClose={reviewPopup.closePopup}
         onRateNow={reviewPopup.handleRateNow}
         onRemindLater={reviewPopup.handleRemindLater}
         onNeverShow={reviewPopup.handleNeverShow}
         triggerAction={reviewPopup.triggerAction}
-      />
+      /> */}
     </AnimatePresence>
   );
 }

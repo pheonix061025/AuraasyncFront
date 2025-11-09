@@ -126,7 +126,7 @@ export default function CalendarPage() {
           className="w-full h-full md:hidden object-cover"
         />
         {/* Overlay for better text readability */}
-        <div className="absolute inset-0 bg-black/20"></div>
+        {/* <div className="absolute inset-0 bg-black/20"></div> */}
       </div>
 
       <div className="max-w-6xl  absolute bottom-[5%] md:bottom-auto  px-4 py-12 md:p-20 z-10 flex flex-col">
