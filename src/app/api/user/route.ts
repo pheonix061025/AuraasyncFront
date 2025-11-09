@@ -63,6 +63,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    console.log('📊 GET /api/user - Fetched user data from Supabase:', {
+      email: userData.email,
+      onboarding_completed: userData.onboarding_completed,
+      gender: userData.gender,
+      user_id: userData.user_id
+    });
+
     return NextResponse.json(userData);
   } catch (error) {
     console.error('Error in GET /api/user:', error);
@@ -90,6 +97,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, gender, location, skin_tone, face_shape, body_shape, personality, onboarding_completed } = body;
 
+    console.log('📝 POST /api/user - Received data:', {
+      email: firebaseUser.email,
+      name,
+      gender,
+      location,
+      onboarding_completed,
+      body_keys: Object.keys(body)
+    });
+
     const userEmail = firebaseUser.email;
 
     // Check if user already exists
@@ -101,19 +117,32 @@ export async function POST(request: NextRequest) {
 
     if (existingUser) {
       // Update existing user
+      console.log('🔄 Updating existing user:', existingUser.user_id);
+      
+      // Build update data - only include onboarding_completed if explicitly set to true
+      // This prevents intermediate steps from overwriting a completed onboarding
+      const updateData: any = {
+        name: name || firebaseUser.name,
+        gender,
+        location,
+        skin_tone,
+        face_shape,
+        body_shape,
+        personality,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Only update onboarding_completed if it's being set to true
+      // This prevents intermediate updates from setting it back to false
+      if (onboarding_completed === true) {
+        updateData.onboarding_completed = true;
+      }
+      
+      console.log('📤 Update data being sent to Supabase:', updateData);
+      
       const { data: updatedUser, error: updateError } = await supabase
         .from('user')
-        .update({
-          name: name || firebaseUser.name,
-          gender,
-          location,
-          skin_tone,
-          face_shape,
-          body_shape,
-          personality,
-          onboarding_completed,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('user_id', existingUser.user_id)
         .select()
         .single();
@@ -122,6 +151,12 @@ export async function POST(request: NextRequest) {
         console.error('Error updating user:', updateError);
         return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
       }
+
+      console.log('✅ User updated successfully:', {
+        user_id: updatedUser.user_id,
+        onboarding_completed: updatedUser.onboarding_completed,
+        gender: updatedUser.gender
+      });
 
       return NextResponse.json(updatedUser);
     } else {

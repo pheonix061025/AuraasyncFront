@@ -227,7 +227,8 @@ export default function Onboarding() {
           face_shape: dataToSave.face_shape || null,
           body_shape: dataToSave.body_shape || null,
           personality: dataToSave.personality || null,
-          onboarding_completed: dataToSave.onboarding_completed || false
+          // Use nullish coalescing to preserve undefined and only default null/undefined to false
+          onboarding_completed: dataToSave.onboarding_completed ?? false
         })
       });
       
@@ -459,25 +460,25 @@ export default function Onboarding() {
             {isLoading ? "Signing in..." : "Continue with Google"}
           </button>
 
-          {!user && (
+          {!user && process.env.NODE_ENV === 'development' && (
             <div className="mt-8">
               <button
                 onClick={() => {
-                  // For testing - skip to next step
-                  const mockUserData: UserData = {
-                    email: "test@gmail.com",
-                    name: "",
-                    gender: "",
-                    location: "Mumbai",
-                    skin_tone: "",
-                    face_shape: null,
-                    body_shape: null,
-                    personality: null,
-                    onboarding_completed: false,
-                  };
-                  setUserData(mockUserData);
-                  setUserDataState(mockUserData);
-                  setCurrentStep(STEPS.BASIC_INFO);
+                // For testing - skip to next step
+                const mockUserData: UserData = {
+                  email: "test@gmail.com", 
+                  name: "",
+                  gender: "",
+                  location: "Mumbai",
+                  skin_tone: "",
+                  face_shape: null,
+                  body_shape: null,
+                  personality: null,
+                  onboarding_completed: false,
+                };
+                setUserData(mockUserData);
+                setUserDataState(mockUserData);
+                setCurrentStep(STEPS.BASIC_INFO);
                 }}
                 className="text-gray-400 hover:text-white transition-colors"
               >
@@ -633,7 +634,9 @@ export default function Onboarding() {
                 face_shape: updatedData.face_shape || null,
                 body_shape: updatedData.body_shape || null,
                 personality: updatedData.personality || null,
-                onboarding_completed: updatedData.onboarding_completed || false
+                // IMPORTANT: Don't set onboarding_completed during intermediate steps
+                // Only set it explicitly to true in the final completion step
+                onboarding_completed: updatedData.onboarding_completed ?? false
               })
             });
             
