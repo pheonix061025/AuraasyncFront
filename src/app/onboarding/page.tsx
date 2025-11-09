@@ -1,7 +1,7 @@
 "use client";
 
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Webcam from "react-webcam";
@@ -99,7 +99,8 @@ const STEP_LABELS: Record<StepType, string> = {
   [STEPS.COMPLETE]: "Complete",
 };
 
-export default function Onboarding() {
+// Inner component that uses useSearchParams
+function OnboardingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const singleMode = searchParams?.get('mode') === 'single';
@@ -1519,3 +1520,18 @@ onClick={() => {
   );
 }
 
+// Wrapper component with Suspense boundary
+export default function Onboarding() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    }>
+      <OnboardingContent />
+    </Suspense>
+  );
+}
