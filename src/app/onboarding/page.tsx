@@ -153,8 +153,25 @@ export default function Onboarding() {
               setCurrentStep(STEPS.BASIC_INFO);
               setIsCheckingAuth(false);
             }
+          } else if (response.status === 404) {
+            // User not found in database - this is normal for brand new users
+            // Set up initial user data and proceed to basic info
+            console.log('New user detected (404) - proceeding to basic info');
+            setUserDataState({
+              email: firebaseUser.email || "",
+              name: firebaseUser.displayName || "",
+              gender: "",
+              location: "Mumbai",
+              skin_tone: "",
+              face_shape: null,
+              body_shape: null,
+              personality: null,
+              onboarding_completed: false,
+            });
+            setCurrentStep(STEPS.BASIC_INFO);
+            setIsCheckingAuth(false);
           } else {
-            console.log('User API returned non-OK status');
+            console.log('User API returned non-OK status:', response.status);
             setIsCheckingAuth(false);
           }
         } catch (error) {

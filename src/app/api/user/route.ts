@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       .from('user')
       .select('*')
       .eq('email', firebaseUser.email)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to handle new users who don't exist yet
 
     if (error) {
       console.error('Error fetching user data:', error);
@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!userData) {
+      console.log('User not found in database - this is normal for new users');
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
@@ -109,11 +110,16 @@ export async function POST(request: NextRequest) {
     const userEmail = firebaseUser.email;
 
     // Check if user already exists
-    const { data: existingUser } = await supabase
+    const { data: existingUser, error: checkError } = await supabase
       .from('user')
       .select('user_id')
       .eq('email', userEmail)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to gracefully handle when user doesn't exist
+
+    // Log any errors from the check query (but don't fail on "no rows" error)
+    if (checkError) {
+      console.error('Error checking for existing user:', checkError);
+    }
 
     if (existingUser) {
       // Update existing user
@@ -163,6 +169,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(updatedUser);
     } else {
       // Create new user
+      console.log('🆕 Creating new user in database:', {
+        email: userEmail,
+        name: name || firebaseUser.name,
+        gender,
+        location
+      });
+      
       const { data: newUser, error: createError } = await supabase
         .from('user')
         .insert({
@@ -176,7 +189,6 @@ export async function POST(request: NextRequest) {
           personality,
           onboarding_completed,
           points: 0,
-          is_new_user: true,
           referral_code: `AURA${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
           total_referrals: 0
         })
@@ -184,15 +196,33 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (createError) {
-        console.error('Error creating user:', createError);
-        return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
+        console.error('❌ Error creating user:', {
+          error: createError,
+          code: createError.code,
+          message: createError.message,
+          details: createError.details
+        });
+        return NextResponse.json({ 
+          error: 'Failed to create user', 
+          details: createError.message 
+        }, { status: 500 });
       }
+
+      console.log('✅ New user created successfully:', {
+        user_id: newUser.user_id,
+        email: newUser.email,
+        gender: newUser.gender
+      });
 
       return NextResponse.json(newUser);
     }
   } catch (error) {
-    console.error('Error in POST /api/user:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('❌ Error in POST /api/user:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: errorMessage 
+    }, { status: 500 });
   }
 }
 

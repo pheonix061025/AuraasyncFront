@@ -198,7 +198,7 @@ export const fetchUserDataFromSupabase = async (): Promise<UserData | null> => {
       .from('user')
       .select('*')
       .eq('email', currentUser.email)
-      .single();
+      .maybeSingle(); // Use maybeSingle() instead of single() to handle new users gracefully
 
     if (error) {
       console.error('Error fetching user data from Supabase:', error);
@@ -206,7 +206,7 @@ export const fetchUserDataFromSupabase = async (): Promise<UserData | null> => {
     }
 
     if (!userData) {
-      console.warn('User not found in Supabase');
+      console.warn('User not found in Supabase - this is normal for new users');
       return null;
     }
 
