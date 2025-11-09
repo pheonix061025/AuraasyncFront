@@ -5,11 +5,6 @@ import Image from "next/image";
 import HairIcon from '@/app/assets/iconHair.png'
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-<<<<<<< HEAD
-
-export default function BottomNavigation() {
-  const pathname = usePathname();
-=======
 import { CiSquarePlus } from "react-icons/ci";
 import { RewardModal } from "../RewardModal";
 import { useState, useEffect } from "react";
@@ -78,7 +73,7 @@ export default function BottomNavigation() {
       loadUserData();
     }, 500);
   };
->>>>>>> feature/points-system
+
 
   const isActive = (path: string) => {
     if (!pathname) return false;
@@ -112,9 +107,7 @@ export default function BottomNavigation() {
           {/* <span className="text-xs">Dashboard</span> */}
         </Link>
 
-<<<<<<< HEAD
-=======
-        {/* Reward Modal Trigger */}
+{/* Reward Modal Trigger */}
         <button
           type="button"
           onClick={() => setShowRewardModal(true)}
@@ -125,7 +118,7 @@ export default function BottomNavigation() {
           <CiSquarePlus className="h-8 w-8" />
         </button>
 
->>>>>>> feature/points-system
+
         {/* Search */}
         <Link 
           href="/search" 
@@ -159,10 +152,7 @@ export default function BottomNavigation() {
           <span className="text-xs">Profile</span>
         </Link> */}
       </div>
-<<<<<<< HEAD
-=======
-
-      {/* Reward Modal */}
+{/* Reward Modal */}
       {showRewardModal && userData && (
         <RewardModal 
           onClose={() => {
@@ -176,7 +166,7 @@ export default function BottomNavigation() {
           onPointsUpdate={handlePointsUpdate}
         />
       )}
->>>>>>> feature/points-system
+
     </nav>
   );
 }

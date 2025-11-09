@@ -42,63 +42,6 @@ function validateImage(base64: string, mimeType: string): { valid: boolean; erro
 }
 
 // Compress image to reduce token usage while maintaining quality for analysis
-<<<<<<< HEAD
-async function compressImage(base64: string, mimeType: string, maxSizeKB: number = 80, analysisMode?: string): Promise<string> {
-	try {
-		// Convert base64 to blob
-		const byteCharacters = atob(base64);
-		const byteNumbers = new Array(byteCharacters.length);
-		for (let i = 0; i < byteCharacters.length; i++) {
-			byteNumbers[i] = byteCharacters.charCodeAt(i);
-		}
-		const byteArray = new Uint8Array(byteNumbers);
-		const blob = new Blob([byteArray], { type: mimeType });
-		
-		// Check if already small enough
-		if (blob.size <= maxSizeKB * 1024) {
-			return base64;
-		}
-		
-		// Create canvas for compression
-		const canvas = document.createElement('canvas');
-		const ctx = canvas.getContext('2d');
-		if (!ctx) return base64;
-		
-		const img = new Image();
-		await new Promise((resolve, reject) => {
-			img.onload = resolve;
-			img.onerror = reject;
-			img.src = `data:${mimeType};base64,${base64}`;
-		});
-		
-		// Calculate new dimensions (optimized for accuracy vs cost)
-		const maxDimension = analysisMode === "face_skin" ? 400 : 500; // Reduced for lower token usage
-		let { width, height } = img;
-		if (width > height) {
-			if (width > maxDimension) {
-				height = (height * maxDimension) / width;
-				width = maxDimension;
-			}
-		} else {
-			if (height > maxDimension) {
-				width = (width * maxDimension) / height;
-				height = maxDimension;
-			}
-		}
-		
-		canvas.width = width;
-		canvas.height = height;
-		ctx.drawImage(img, 0, 0, width, height);
-		
-		// Convert back to base64 with compression (optimized for accuracy vs tokens)
-		const quality = 0.7; // Reduced quality for lower token usage
-		const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-		const compressedBase64 = compressedDataUrl.split(',')[1];
-		
-		return compressedBase64;
-	} catch (error) {
-		console.warn('Image compression failed, using original:', error);
-=======
 // Note: Server-side compression is limited - images should be compressed client-side before sending
 async function compressImage(base64: string, mimeType: string, maxSizeKB: number = 80, analysisMode?: string): Promise<string> {
 	try {
@@ -125,7 +68,7 @@ async function compressImage(base64: string, mimeType: string, maxSizeKB: number
 		return base64;
 	} catch (error) {
 		console.warn('Image compression check failed, using original:', error);
->>>>>>> feature/points-system
+
 		return base64;
 	}
 }
@@ -181,10 +124,8 @@ function verifyAuth(req: Request): boolean {
 
 export async function POST(req: Request) {
 	const globalAny = global as any;
-<<<<<<< HEAD
-=======
-	const requestStartTime = Date.now();
->>>>>>> feature/points-system
+const requestStartTime = Date.now();
+
 	
 	// Security checks
 	const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
@@ -208,11 +149,7 @@ export async function POST(req: Request) {
 	try {
 		const { mode, images, gender } = await req.json();
 
-<<<<<<< HEAD
-		// Input validation
-		if (!mode || !Array.isArray(images) || images.length === 0) {
-=======
-		// Log request details
+// Log request details
 		console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 		console.log('🔵 GEMINI API REQUEST');
 		console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -225,7 +162,7 @@ export async function POST(req: Request) {
 		// Input validation
 		if (!mode || !Array.isArray(images) || images.length === 0) {
 			console.log('❌ Validation failed: Missing required fields');
->>>>>>> feature/points-system
+
 			return NextResponse.json(
 				{ error: "Missing required fields: mode, images[]" },
 				{ status: 400 }
@@ -275,16 +212,7 @@ export async function POST(req: Request) {
 		const genAI = new GoogleGenerativeAI(apiKey);
 		// Use the most cost-effective model by default, with fallbacks
 		// For body analysis, use a more capable model for better accuracy
-<<<<<<< HEAD
-		const primaryModel = mode === "body_shape" 
-			? (process.env.GEMINI_MODEL || "gemini-2.5-flash")
-			: (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite");
-		let model = genAI.getGenerativeModel({ model: primaryModel });
-		const fallbackModels = mode === "body_shape"
-			? ["gemini-1.5-flash", "gemini-2.5-flash-lite"].filter(m => m !== primaryModel)
-			: ["gemini-2.5-flash", "gemini-1.5-flash"].filter(m => m !== primaryModel);
-=======
-		// Use Flash Lite for all modes to optimize costs
+// Use Flash Lite for all modes to optimize costs
 		const primaryModel = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
 		let model = genAI.getGenerativeModel({ model: primaryModel });
 		const fallbackModels = ["gemini-2.5-flash", "gemini-1.5-flash"].filter(m => m !== primaryModel);
@@ -293,7 +221,7 @@ export async function POST(req: Request) {
 		if (fallbackModels.length > 0) {
 			console.log(`🔄 Fallback Models: ${fallbackModels.join(', ')}`);
 		}
->>>>>>> feature/points-system
+
 
 		// Validate and compress images
 		const imageValidation = images
@@ -316,11 +244,8 @@ export async function POST(req: Request) {
 			imageValidation
 				.filter((p) => p.base64 && p.validation.valid)
 				.map(async (p) => ({
-<<<<<<< HEAD
-					base64: await compressImage(p.base64, p.mimeType, 50, mode), // Reduced from 80KB to 50KB
-=======
-					base64: await compressImage(p.base64, p.mimeType, 30, mode), // Further reduced to 30KB for token optimization
->>>>>>> feature/points-system
+base64: await compressImage(p.base64, p.mimeType, 30, mode), // Further reduced to 30KB for token optimization
+
 					mimeType: p.mimeType
 				}))
 		);
@@ -339,25 +264,14 @@ export async function POST(req: Request) {
 		let systemPrompt = "";
 		let responseSchema: any | undefined;
 		if (mode === "face_skin") {
-<<<<<<< HEAD
-			systemPrompt = [
-				"Analyze face shape and skin tone:",
-				"",
-				"Face shapes: Oval (1.5x length), Round (equal), Square (angular), Heart (wide forehead), Diamond (wide cheeks), Oblong (long)",
-				"Skin tones: Warm (golden), Cool (pink/blue), Neutral (balanced)",
-				"",
-				"Requirements: Clear face, good lighting. If unclear: {\"error\": \"face_not_detected\"} or {\"error\": \"skin_not_detected\"}",
-				"",
-				"Return JSON: face_shape, skin_tone, face_confidence, skin_confidence",
-=======
-			// Optimized prompt - shorter to reduce tokens
+// Optimized prompt - shorter to reduce tokens
 			systemPrompt = [
 				"Analyze face & skin:",
 				"Face: Oval/Round/Square/Heart/Diamond/Oblong",
 				"Skin: Warm/Cool/Neutral",
 				"If unclear: {\"error\": \"face_not_detected\"} or {\"error\": \"skin_not_detected\"}",
 				"Return JSON: {face_shape, skin_tone, face_confidence, skin_confidence}"
->>>>>>> feature/points-system
+
 			].join("\n");
 			responseSchema = {
 				type: "object",
@@ -405,20 +319,7 @@ export async function POST(req: Request) {
 				];
 			}
 			
-<<<<<<< HEAD
-			systemPrompt = [
-				`Analyze body shape${genderHint}:`,
-				"",
-				//
-				"",
-				"Measure: shoulder width, waist width, hip width. Calculate ratios.",
-				"",
-				"Body types:",
-				...bodyDescriptions,
-				"",
-				"Return JSON: body_shape, body_confidence (0.0-1.0, min 0.7)",
-=======
-			// Optimized prompt - shorter to reduce tokens
+// Optimized prompt - shorter to reduce tokens
 			const shortDescriptions = bodyDescriptions.map(d => {
 				const parts = d.split(':');
 				if (parts.length >= 2) {
@@ -432,7 +333,7 @@ export async function POST(req: Request) {
 				"Types:",
 				...shortDescriptions,
 				"Return JSON: {body_shape, body_confidence} (min 0.7)"
->>>>>>> feature/points-system
+
 			].join("\n");
 			
 			responseSchema = {
@@ -453,39 +354,22 @@ export async function POST(req: Request) {
 
 		// Retry helper for transient errors
 		const retryableStatus = new Set([408, 429, 500, 502, 503, 504]);
-<<<<<<< HEAD
-=======
-		let currentModelName = primaryModel; // Track which model is currently being used
->>>>>>> feature/points-system
+let currentModelName = primaryModel; // Track which model is currently being used
+
 		const generateWithRetry = async (maxAttempts: number = 3) => {
 			let attempt = 0;
 			let lastError: any;
 			while (attempt < maxAttempts) {
 				try {
-<<<<<<< HEAD
-					return await model.generateContent({
-=======
-					const apiCallStart = Date.now();
+const apiCallStart = Date.now();
 					console.log(`  📞 Attempt ${attempt + 1}/${maxAttempts} using model: ${currentModelName}`);
 					const result = await model.generateContent({
->>>>>>> feature/points-system
+
 						contents: [
 							{ role: "user", parts: [{ text: systemPrompt }, ...imageParts] },
 						],
 						generationConfig: {
-<<<<<<< HEAD
-							temperature: mode === "body_shape" ? 0.1 : 0, // Slight randomness for body analysis to avoid overfitting
-							topK: mode === "body_shape" ? 3 : 1, // More options for body analysis
-							topP: 0.95, // High topP for better accuracy
-							responseMimeType: responseSchema ? "application/json" : undefined,
-							responseSchema: responseSchema,
-						},
-					});
-				} catch (err: any) {
-					lastError = err;
-					const status: number | undefined = err?.status || err?.response?.status;
-=======
-							temperature: mode === "body_shape" ? 0.1 : 0,
+temperature: mode === "body_shape" ? 0.1 : 0,
 							topK: mode === "body_shape" ? 3 : 1,
 							topP: 0.9, // Reduced from 0.95 to optimize tokens
 							responseMimeType: responseSchema ? "application/json" : undefined,
@@ -500,36 +384,24 @@ export async function POST(req: Request) {
 					lastError = err;
 					const status: number | undefined = err?.status || err?.response?.status;
 					console.log(`  ⚠️  Attempt ${attempt + 1} failed: ${err?.message || 'Unknown error'} (Status: ${status || 'N/A'})`);
->>>>>>> feature/points-system
+
 					// On quota/network/server errors, try fallback models sequentially
 					if (status === 429 || status === 500 || status === 503 || !status) {
 						for (const fm of fallbackModels) {
 							try {
-<<<<<<< HEAD
-								model = genAI.getGenerativeModel({ model: fm });
-								return await model.generateContent({
-=======
-								console.log(`  🔄 Trying fallback model: ${fm}`);
+console.log(`  🔄 Trying fallback model: ${fm}`);
 								currentModelName = fm;
 								model = genAI.getGenerativeModel({ model: fm });
 								const fallbackStart = Date.now();
 								const result = await model.generateContent({
->>>>>>> feature/points-system
+
 									contents: [
 										{ role: "user", parts: [{ text: systemPrompt }, ...imageParts] },
 									],
 								generationConfig: {
 									temperature: mode === "body_shape" ? 0.1 : 0,
 									topK: mode === "body_shape" ? 3 : 1,
-<<<<<<< HEAD
-									topP: 0.95,
-									responseMimeType: responseSchema ? "application/json" : undefined,
-									responseSchema: responseSchema,
-								},
-								});
-							} catch (fallbackErr: any) {
-=======
-									topP: 0.9,
+topP: 0.9,
 									responseMimeType: responseSchema ? "application/json" : undefined,
 									responseSchema: responseSchema,
 									maxOutputTokens: 500,
@@ -540,7 +412,7 @@ export async function POST(req: Request) {
 								return result;
 							} catch (fallbackErr: any) {
 								console.log(`  ❌ Fallback model ${fm} failed: ${fallbackErr?.message || 'Unknown error'}`);
->>>>>>> feature/points-system
+
 								lastError = fallbackErr;
 								continue;
 							}
@@ -549,18 +421,14 @@ export async function POST(req: Request) {
 					if (!status || !retryableStatus.has(status)) break;
 					// Exponential backoff with jitter: 500ms, 1s, 2s
 					const delayMs = Math.min(2000, 500 * Math.pow(2, attempt)) + Math.floor(Math.random() * 200);
-<<<<<<< HEAD
-=======
-					console.log(`  ⏳ Retrying in ${delayMs}ms...`);
->>>>>>> feature/points-system
+console.log(`  ⏳ Retrying in ${delayMs}ms...`);
+
 					await new Promise((r) => setTimeout(r, delayMs));
 					attempt += 1;
 				}
 			}
-<<<<<<< HEAD
-=======
-			console.log(`  ❌ All attempts failed`);
->>>>>>> feature/points-system
+console.log(`  ❌ All attempts failed`);
+
 			throw lastError;
 		};
 
@@ -588,20 +456,15 @@ export async function POST(req: Request) {
 				if (globalAny.__geminiUsageStats) {
 					globalAny.__geminiUsageStats.cacheHits++;
 				}
-<<<<<<< HEAD
-=======
-				console.log('💾 Cache HIT - Returning cached result');
+console.log('💾 Cache HIT - Returning cached result');
 				console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
->>>>>>> feature/points-system
+
 				return NextResponse.json({ data: entry.value, cached: true });
 			}
 			cache.delete(cacheKey);
 		}
-<<<<<<< HEAD
-=======
-		
-		console.log('🚀 Making API call to Gemini...');
->>>>>>> feature/points-system
+console.log('🚀 Making API call to Gemini...');
+
 
 		const result = await generateWithRetry(2);
 
@@ -609,16 +472,7 @@ export async function POST(req: Request) {
 		// Track token usage for monitoring
 		const usage = result.response.usageMetadata;
 		const totalTokens = usage?.totalTokenCount || 0;
-<<<<<<< HEAD
-		console.log("/api/gemini usage:", {
-			promptTokens: usage?.promptTokenCount || 0,
-			completionTokens: usage?.candidatesTokenCount || 0,
-			totalTokens,
-			mode,
-			model: model.model
-		});
-=======
-		const promptTokens = usage?.promptTokenCount || 0;
+const promptTokens = usage?.promptTokenCount || 0;
 		const candidatesTokenCount = usage?.candidatesTokenCount || 0;
 		
 		// Log token usage
@@ -626,7 +480,7 @@ export async function POST(req: Request) {
 		console.log(`  📥 Input Tokens: ${promptTokens.toLocaleString()}`);
 		console.log(`  📤 Output Tokens: ${candidatesTokenCount.toLocaleString()}`);
 		console.log(`  📊 Total Tokens: ${totalTokens.toLocaleString()}`);
->>>>>>> feature/points-system
+
 		
 		// Update usage stats
 		if (!globalAny.__geminiUsageStats) {
@@ -644,13 +498,7 @@ export async function POST(req: Request) {
 		stats.totalTokens += totalTokens;
 		if (mode === "face_skin") stats.faceRequests++;
 		if (mode === "body_shape") stats.bodyRequests++;
-<<<<<<< HEAD
-		// Debug log to verify model output server-side
-		console.log("/api/gemini raw response:", text?.slice(0, 500));
-		const parsed = safeJsonParse<any>(text);
-=======
-		
-		const parsed = safeJsonParse<any>(text);
+const parsed = safeJsonParse<any>(text);
 		
 		// Log response details
 		console.log('\n📦 RESPONSE:');
@@ -666,7 +514,7 @@ export async function POST(req: Request) {
 				console.log(`  📈 Body Confidence: ${parsed.body_confidence || 'N/A'}`);
 			}
 		}
->>>>>>> feature/points-system
+
 
 		if (!parsed) {
 			return NextResponse.json(
@@ -728,11 +576,7 @@ export async function POST(req: Request) {
 					if (first) cache.delete(first);
 				}
 				cache.set(cacheKey, { expires: Date.now() + 5 * 60_000, value: normalized });
-<<<<<<< HEAD
-			} catch {}
-		}
-=======
-				console.log('💾 Result cached for 5 minutes');
+console.log('💾 Result cached for 5 minutes');
 			} catch {}
 		}
 		
@@ -742,7 +586,7 @@ export async function POST(req: Request) {
 		console.log(`📈 Session Stats: ${stats.totalRequests} requests | ${stats.totalTokens.toLocaleString()} total tokens | ${stats.cacheHits} cache hits`);
 		console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 		
->>>>>>> feature/points-system
+
 		const response = NextResponse.json({ data: normalized });
 		
 		// Add security headers
@@ -760,16 +604,14 @@ export async function POST(req: Request) {
 			globalAny.__geminiUsageStats.errors++;
 		}
 		
-<<<<<<< HEAD
-=======
-		const errorDuration = Date.now() - requestStartTime;
+const errorDuration = Date.now() - requestStartTime;
 		console.log('\n❌ ERROR OCCURRED:');
 		console.log(`  Error: ${err?.message || 'Unknown error'}`);
 		console.log(`  Status: ${err?.status || err?.response?.status || 'N/A'}`);
 		console.log(`  Duration: ${errorDuration}ms`);
 		console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 		
->>>>>>> feature/points-system
+
 		const status: number | undefined = err?.status || err?.response?.status;
 		if (status === 429) {
 			// Surface quota issue to client with optional retry hint

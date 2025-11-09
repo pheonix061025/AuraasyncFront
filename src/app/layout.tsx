@@ -3,10 +3,8 @@ import { Montserrat, Playfair_Display, Poppins } from "next/font/google";
 import "./globals.css";
 import ConditionalFooter from '../components/ConditionalFooter';
 import FlowController from '../components/FlowController';
-<<<<<<< HEAD
-=======
 import CoinToWalletFXClient from '../components/CoinToWalletFXClient';
->>>>>>> feature/points-system
+
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 import { Suspense } from 'react'
 
@@ -112,10 +110,8 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${montserrat.variable} ${popin.variable} ${playfair.variable}`}>
       <body className="bg-black text-white flex flex-col min-h-screen">
-<<<<<<< HEAD
-=======
-        <CoinToWalletFXClient />
->>>>>>> feature/points-system
+<CoinToWalletFXClient />
+
         {process.env.NODE_ENV === 'production' && (
           <Suspense fallback={null}>
             <GoogleAnalytics GA_MEASUREMENT_ID={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID!} />

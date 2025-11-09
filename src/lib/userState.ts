@@ -8,8 +8,6 @@ export interface UserData {
   body_shape?: string | null;
   personality?: string | null;
   onboarding_completed: boolean;
-<<<<<<< HEAD
-=======
   points?: number;
   last_login_date?: string;
   referral_code?: string;
@@ -17,7 +15,6 @@ export interface UserData {
   review_popup_status?: 'enabled' | 'disabled' | 'never_show';
   last_review_popup?: string;
   user_id?: number; // Supabase user_id for database operations
->>>>>>> feature/points-system
 }
 
 export interface UserState {
@@ -54,9 +51,6 @@ export const setUserData = (userData: UserData): void => {
   if (typeof window === 'undefined') return;
   
   try {
-<<<<<<< HEAD
-    localStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
-=======
     // Only store non-sensitive data in localStorage
     // Points and other critical data should always be fetched from server
     const dataToSave = {
@@ -78,7 +72,6 @@ export const setUserData = (userData: UserData): void => {
       last_review_popup: userData.last_review_popup || null
     };
     localStorage.setItem(USER_DATA_KEY, JSON.stringify(dataToSave));
->>>>>>> feature/points-system
   } catch (error) {
     console.error('Error saving user data:', error);
   }
@@ -154,8 +147,6 @@ export const getRedirectPath = (): string => {
   // Gender-specific homepage
   return userData.gender === 'male' ? '/male' : '/female';
 };
-<<<<<<< HEAD
-=======
 
 // Personality category to MBTI mapping for backward compatibility
 export const mapPersonalityToMBTI = (personalityCategory: string): string => {
@@ -267,4 +258,3 @@ export const getCurrentUserData = async (): Promise<UserData | null> => {
 export const refreshUserData = async (): Promise<UserData | null> => {
   return await fetchUserDataFromSupabase();
 };
->>>>>>> feature/points-system

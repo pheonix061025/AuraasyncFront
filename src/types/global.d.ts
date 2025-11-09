@@ -46,9 +46,7 @@ declare global {
       NEXTAUTH_SECRET: string;
       NEXTAUTH_URL: string;
       GOOGLE_API_KEY?: string;
-<<<<<<< HEAD
-=======
-      NEXT_PUBLIC_SUPABASE_URL?: string;
+NEXT_PUBLIC_SUPABASE_URL?: string;
       NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
   // Firebase client (public)
   NEXT_PUBLIC_FIREBASE_API_KEY?: string;
@@ -61,7 +59,7 @@ declare global {
       FIREBASE_PROJECT_ID?: string;
       FIREBASE_CLIENT_EMAIL?: string;
       FIREBASE_PRIVATE_KEY?: string;
->>>>>>> feature/points-system
+
     }
   }
 }

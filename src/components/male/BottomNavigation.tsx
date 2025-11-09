@@ -1,15 +1,6 @@
 "use client";
 
 import { Home, Search, User, UserCircle } from "lucide-react";
-<<<<<<< HEAD
-import Image from "next/image";
-import HairIcon from '@/app/assets/iconHair.png'
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-
-export default function BottomNav() {
-  const pathname = usePathname();
-=======
 import { FaRegUser } from "react-icons/fa";
 import Image from "next/image";
 import { MdOutlineAddBox } from "react-icons/md";
@@ -85,7 +76,7 @@ export default function BottomNav() {
       loadUserData();
     }, 500);
   };
->>>>>>> feature/points-system
+
 
   const isActive = (path: string) => {
     if (!pathname) return false;
@@ -106,10 +97,7 @@ export default function BottomNav() {
         >
           <Home className="h-8 w-8" />
           {/* <span className="text-xs">Home</span> */}
-<<<<<<< HEAD
-=======
-        
->>>>>>> feature/points-system
+
         </Link>
 
         {/* Dashboard */}
@@ -119,13 +107,7 @@ export default function BottomNav() {
             isActive('/dashboard') ? 'text-blue-400' : 'text-white hover:text-blue-400'
           }`}
         >
-<<<<<<< HEAD
-          <UserCircle className="h-8 w-8" />
-          {/* <span className="text-xs">Dashboard</span> */}
-        </Link>
-
-=======
-          <FaRegUser className="h-8 w-8" />
+<FaRegUser className="h-8 w-8" />
           {/* <span className="text-xs">Dashboard</span> */}
         </Link>
 
@@ -142,7 +124,7 @@ export default function BottomNav() {
           </button>
         </>
 
->>>>>>> feature/points-system
+
         {/* Search */}
         <Link 
           href="/search" 
@@ -157,19 +139,12 @@ export default function BottomNav() {
         {/* Hairstyle */}
         <Link 
           href="/hairstyle" 
-<<<<<<< HEAD
-          className={`flex flex-col items-center space-y-1 transition-colors ${
-            isActive('/hairstyle') ? 'text-blue-400' : 'text-white hover:text-blue-400'
-          }`}
-        >
-          <Image src={HairIcon} width={24} height={24} alt="hair icon" className="h-6 w-6"/>
-=======
-          className={`flex flex-col items-center space-y-1  transition-colors ${
+className={`flex flex-col items-center space-y-1  transition-colors ${
             isActive('/hairstyle') ? 'text-blue-400' : 'text-white hover:text-blue-400'
           }`}
         >
           <Image src={HairIcon} width={30} height={30} alt="hair icon" className="h-6 w-6"/>
->>>>>>> feature/points-system
+
           {/* <span className="text-xs">Hairstyle</span> */}
         </Link>
 
@@ -184,10 +159,7 @@ export default function BottomNav() {
           <span className="text-xs">Profile</span>
         </Link> */}
       </div>
-<<<<<<< HEAD
-=======
-
-      {/* Reward Modal */}
+{/* Reward Modal */}
       {showRewardModal && userData && (
         <RewardModal 
           onClose={() => {
@@ -201,7 +173,7 @@ export default function BottomNav() {
           onPointsUpdate={handlePointsUpdate}
         />
       )}
->>>>>>> feature/points-system
+
     </nav>
   );
 }
