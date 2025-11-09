@@ -420,6 +420,7 @@ export default function ReferralPage() {
             </div>
           </div>
         </motion.div>
+        <h1>Demo</h1>
 
         {/* Right Column - Enter Referral Code */}
         <motion.div
