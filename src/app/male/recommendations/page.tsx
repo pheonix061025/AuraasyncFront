@@ -3,6 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import GenderNavbar from '../../../components/GenderNavbar';
 import BottomNavigation from '@/components/male/BottomNavigation';
+<<<<<<< HEAD
+=======
+import { getPersonalityForAPI } from '../../../lib/userState';
+>>>>>>> feature/points-system
 
 type Product = {
   title: string;
@@ -29,7 +33,11 @@ export default function MaleRecommendationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           body_shape: userData.body_shape || 'Rectangle',
+<<<<<<< HEAD
           personality_type: userData.personality || 'ISTJ',
+=======
+          personality_type: getPersonalityForAPI(userData),
+>>>>>>> feature/points-system
           skin_tone: userData.skin_tone || null,
           page: 1,
           limit: 24,

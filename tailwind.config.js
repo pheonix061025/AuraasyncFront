@@ -14,6 +14,10 @@ module.exports = {
         secondary: '#f5f5f5',
         accent: '#d4af37',
         'accent-dark': '#b38f2c',
+<<<<<<< HEAD
+=======
+        hero: '#251F1E',
+>>>>>>> feature/points-system
       },
       fontFamily: {
         sans: ['var(--font-montserrat)', 'sans-serif'],

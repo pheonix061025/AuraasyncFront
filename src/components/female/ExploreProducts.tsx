@@ -23,15 +23,22 @@ const ExploreProducts = ({ gender }: ExploreProductsProps) => {
     const [showAll, setShowAll] = useState(false);
     const [displayCount, setDisplayCount] = useState(12);
 
+<<<<<<< HEAD
     console.log('ExploreProducts component rendered with gender:', gender);
 
     useEffect(() => {
         console.log('ExploreProducts useEffect triggered for gender:', gender);
+=======
+    useEffect(() => {
+>>>>>>> feature/points-system
         loadExploreData();
     }, [gender]);
 
     const loadExploreData = async () => {
+<<<<<<< HEAD
         console.log('Starting to load explore data for gender:', gender);
+=======
+>>>>>>> feature/points-system
         setLoading(true);
         setError(null);
 
@@ -44,6 +51,7 @@ const ExploreProducts = ({ gender }: ExploreProductsProps) => {
                 throw new Error('No products found in explore data');
             }
 
+<<<<<<< HEAD
             console.log(`Total products loaded: ${allProducts.length}`);
             console.log(`Looking for gender: ${gender}`);
 
@@ -55,6 +63,11 @@ const ExploreProducts = ({ gender }: ExploreProductsProps) => {
 
             console.log(`Filtered products for ${gender}: ${filteredProducts.length}`);
 
+=======
+            // Filter products by gender
+            const filteredProducts = allProducts.filter(product => product.type === gender);
+
+>>>>>>> feature/points-system
             if (filteredProducts.length === 0) {
                 throw new Error(`No ${gender} products found in explore data`);
             }
@@ -62,7 +75,10 @@ const ExploreProducts = ({ gender }: ExploreProductsProps) => {
             // Shuffle the products for random display
             const shuffled = shuffleArray([...filteredProducts]);
             setProducts(shuffled);
+<<<<<<< HEAD
             console.log('Products set successfully:', shuffled.length);
+=======
+>>>>>>> feature/points-system
 
         } catch (err) {
             console.error('Error loading explore data:', err);

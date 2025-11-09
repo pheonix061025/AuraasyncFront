@@ -68,7 +68,11 @@ frontend/
 - **Body Type Analysis**: AI-powered body shape detection
 - **Face Shape Analysis**: Facial structure classification
 - **Skin Tone Analysis**: Automated color classification
+<<<<<<< HEAD
 - **Personality Analysis**: MBTI-based assessment
+=======
+- **Personality Analysis**: 8-question style personality assessment with 5 categories (Minimalist, Dreamer, Charmer, Visionary, Explorer)
+>>>>>>> feature/points-system
 - **Recommendations**: Personalized fashion suggestions
 
 ### User Experience

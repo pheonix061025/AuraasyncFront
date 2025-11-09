@@ -4,6 +4,10 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getUserData, clearUserData } from '../lib/userState';
+<<<<<<< HEAD
+=======
+import PointsDisplay from './PointsDisplay';
+>>>>>>> feature/points-system
 
 interface GenderNavbarProps {
   gender: 'male' | 'female';
@@ -77,7 +81,19 @@ export default function GenderNavbar({ gender }: GenderNavbarProps) {
           </div>
 
           {/* User Menu */}
+<<<<<<< HEAD
           <div className="flex items-center space-x-4">
+=======
+          <div className="flex items-center space-x-2 md:space-x-4">
+            {/* Points Display */}
+            <div className="hidden sm:block">
+              <PointsDisplay 
+                userData={userData} 
+                compact={true}
+              />
+            </div>
+            
+>>>>>>> feature/points-system
             <div className="hidden md:flex items-center space-x-2 text-white">
               <span>👤</span>
               <span className="text-sm">{userData?.name || 'User'}</span>
@@ -154,6 +170,17 @@ export default function GenderNavbar({ gender }: GenderNavbarProps) {
               </Link>
               
               <div className="border-t border-white/10 pt-2 mt-2">
+<<<<<<< HEAD
+=======
+                {/* Mobile Points Display */}
+                <div className="px-3 py-2">
+                  <PointsDisplay 
+                    userData={userData} 
+                    compact={true}
+                  />
+                </div>
+                
+>>>>>>> feature/points-system
                 <div className="px-3 py-2 text-white text-sm">
                   👤 {userData?.name || 'User'}
                 </div>

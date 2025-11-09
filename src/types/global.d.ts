@@ -46,6 +46,22 @@ declare global {
       NEXTAUTH_SECRET: string;
       NEXTAUTH_URL: string;
       GOOGLE_API_KEY?: string;
+<<<<<<< HEAD
+=======
+      NEXT_PUBLIC_SUPABASE_URL?: string;
+      NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
+  // Firebase client (public)
+  NEXT_PUBLIC_FIREBASE_API_KEY?: string;
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?: string;
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID?: string;
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?: string;
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?: string;
+  NEXT_PUBLIC_FIREBASE_APP_ID?: string;
+      // Firebase Admin (server-side)
+      FIREBASE_PROJECT_ID?: string;
+      FIREBASE_CLIENT_EMAIL?: string;
+      FIREBASE_PRIVATE_KEY?: string;
+>>>>>>> feature/points-system
     }
   }
 }

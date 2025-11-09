@@ -14,11 +14,20 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@radix-ui/react-slot": "^1.2.3",
+<<<<<<< HEAD
+=======
+    "@supabase/supabase-js": "^2.75.1",
+    "@types/uuid": "^10.0.0",
+>>>>>>> feature/points-system
     "axios": "^1.6.0",
     "chart.js": "^4.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.2.1",
+<<<<<<< HEAD
+=======
+    "firebase-admin": "^13.5.0",
+>>>>>>> feature/points-system
     "framer-motion": "^10.18.0",
     "gsap": "^3.12.2",
     "lucide-react": "^0.542.0",
@@ -35,7 +44,12 @@
     "react-responsive": "^10.0.1",
     "react-webcam": "^7.2.0",
     "sharp": "^0.34.3",
+<<<<<<< HEAD
     "tailwind-merge": "^3.3.1"
+=======
+    "tailwind-merge": "^3.3.1",
+    "uuid": "^13.0.0"
+>>>>>>> feature/points-system
   },
   "devDependencies": {
     "@types/node": "^20",

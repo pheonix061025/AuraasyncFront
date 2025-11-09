@@ -2,6 +2,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+<<<<<<< HEAD
+=======
+import { useRouter } from 'next/navigation';
+>>>>>>> feature/points-system
 import GenderNavbar from '../../components/GenderNavbar';
 import FaceAnalysisWidget from '../../components/FaceAnalysisWidget';
 import BodyAnalysisWidget from '../../components/BodyAnalysisWidget';
@@ -14,6 +18,11 @@ import ProductGrid from '@/components/female/ProductGrid';
 import BottomNavigation from '@/components/female/BottomNavigation';
 import ExploreProducts from '@/components/female/ExploreProducts';
 import Navbar from '@/components/Navbar';
+<<<<<<< HEAD
+=======
+import { getPersonalityForAPI } from '../../lib/userState';
+import WalletButton from '@/components/WalletButton';
+>>>>>>> feature/points-system
 
 // Analysis steps
 const ANALYSIS_STEPS = [
@@ -53,6 +62,10 @@ const Hero = () => {
 
 // Main Female Page Component with Analysis Logic
 const FemaleHome = () => {
+<<<<<<< HEAD
+=======
+  const router = useRouter();
+>>>>>>> feature/points-system
   const [currentStep, setCurrentStep] = useState(0);
   const [results, setResults] = useState<AnalysisResults>({ gender: 'Female' });
   const [skipped, setSkipped] = useState<{ face: boolean; body: boolean; personality: boolean; skin_tone: boolean }>({ 
@@ -68,6 +81,7 @@ const FemaleHome = () => {
 
   const canShowRecommendations = completed.length >= 2;
 
+<<<<<<< HEAD
   // Onboarding gate and immediate recommendations view
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('auraasync_user_data') || '{}');
@@ -99,6 +113,8 @@ const FemaleHome = () => {
     }
   }, [recommendationsLoaded]);
 
+=======
+>>>>>>> feature/points-system
   const fetchRecommendations = async () => {
     setLoading(true);
     setError(null);
@@ -111,7 +127,11 @@ const FemaleHome = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           body_shape: userData.body_shape || results.body_shape || 'Hourglass',
+<<<<<<< HEAD
           personality_type: userData.personality || results.personality_type || 'ISTJ',
+=======
+          personality_type: getPersonalityForAPI(userData) || results.personality_type || 'ISTJ',
+>>>>>>> feature/points-system
           skin_tone: userData.skin_tone || results.skin_tone || 'Warm',
         }),
       });
@@ -131,6 +151,40 @@ const FemaleHome = () => {
     }
   };
 
+<<<<<<< HEAD
+=======
+  // Onboarding gate and immediate recommendations view
+  useEffect(() => {
+    // Don't check onboarding if user is actively doing analysis (currentStep > 0)
+    // This prevents redirect when redoing analysis
+    if (currentStep > 0) {
+      return;
+    }
+    
+    const userData = JSON.parse(localStorage.getItem('auraasync_user_data') || '{}');
+    if (!userData || !userData.onboarding_completed) {
+      router.replace('/onboarding');
+      return;
+    }
+    // Only show recommendations immediately if we're not in analysis mode
+    // If currentStep is 0 or showRecommendations is false, don't auto-show
+    if (currentStep === 0 && !showRecommendations && !recommendationsLoaded) {
+      setShowRecommendations(true);
+      fetchRecommendations();
+      setRecommendationsLoaded(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, currentStep]);
+
+  useEffect(() => {
+    if (currentStep >= ANALYSIS_STEPS.length - 1 && canShowRecommendations) {
+      setShowRecommendations(true);
+      fetchRecommendations();
+    }
+  }, [currentStep, canShowRecommendations]);
+
+
+>>>>>>> feature/points-system
   const handleComplete = (type: 'face' | 'skin_tone' | 'body' | 'personality', value: string) => {
     setResults(prev => ({ ...prev, [type === 'face' ? 'face_shape' : type === 'body' ? 'body_shape' : type === 'personality' ? 'personality_type' : 'skin_tone']: value }));
     setCompleted(prev => Array.from(new Set([...prev, type])));
@@ -151,7 +205,11 @@ const FemaleHome = () => {
   };
 
   const handleRestart = () => {
+<<<<<<< HEAD
     setCurrentStep(0);
+=======
+    setCurrentStep(1); // Start from step 1 (Face Analysis) instead of 0
+>>>>>>> feature/points-system
     setResults({ gender: 'Female' });
     setSkipped({ face: false, body: false, personality: false, skin_tone: false });
     setCompleted([]);
@@ -160,6 +218,10 @@ const FemaleHome = () => {
     setLoading(false);
     setError(null);
     setSearchQuery(null);
+<<<<<<< HEAD
+=======
+    setRecommendationsLoaded(false); // Reset recommendations loaded flag
+>>>>>>> feature/points-system
   };
 
   // Welcome Step with Hero UI
@@ -265,10 +327,21 @@ const FemaleHome = () => {
                 Start Over
               </button>
               <button
+<<<<<<< HEAD
                 onClick={handleBack}
                 className="px-8 py-4 bg-pink-600 rounded-xl text-xl font-bold hover:bg-pink-700 transition-colors"
               >
                 Back to Analysis
+=======
+                onClick={() => {
+                  setShowRecommendations(false);
+                  setCurrentStep(1); // Go back to step 1 (Face Analysis)
+                  setRecommendationsLoaded(false);
+                }}
+                className="px-8 py-4 bg-pink-600 rounded-xl text-xl font-bold hover:bg-pink-700 transition-colors"
+              >
+                Redo Analysis
+>>>>>>> feature/points-system
               </button>
             </div>
           </motion.div>
@@ -280,8 +353,11 @@ const FemaleHome = () => {
   // Analysis Steps
   return (
     <div className="min-h-screen bg-[#1a1414]">
+<<<<<<< HEAD
       
       
+=======
+>>>>>>> feature/points-system
       {!showRecommendations ? (
         <div className="pt-20 pb-20 px-6 max-w-7xl mx-auto">
           {/* Analysis Steps */}
@@ -414,6 +490,7 @@ const FemaleHome = () => {
 export default function FemaleLanding() {
   return (
     <div className="min-h-screen bg-black">
+<<<<<<< HEAD
       {/* Navbar for mobile */}
       
     
@@ -423,6 +500,15 @@ export default function FemaleLanding() {
         <MarqueeText/>
         <ExploreProducts gender="women"/>
        <BottomNavigation/>
+=======
+      <WalletButton />
+      <FemaleHome />
+      <OutfitRecommendations/>
+      <OccasionRecommendations/>
+      <MarqueeText/>
+      <ExploreProducts gender="women"/>
+      <BottomNavigation/>
+>>>>>>> feature/points-system
     </div>
   );
 }

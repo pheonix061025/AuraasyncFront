@@ -1,7 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Enable static optimization
+<<<<<<< HEAD
   output: "standalone",
+=======
+  // output: "standalone", // Disabled due to Windows symlink issues with pnpm
+>>>>>>> feature/points-system
 
   // Image optimization
   images: {
@@ -96,6 +100,12 @@ const nextConfig = {
     externalDir: true,
   },
 
+<<<<<<< HEAD
+=======
+  // Note: API configuration moved to route handlers in App Router
+  // For body size limits, configure in individual API routes
+
+>>>>>>> feature/points-system
   reactStrictMode: true,
 };
 

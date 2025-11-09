@@ -1,6 +1,7 @@
 "use client";
 
 import { Home, Search, User, UserCircle } from "lucide-react";
+<<<<<<< HEAD
 import Image from "next/image";
 import HairIcon from '@/app/assets/iconHair.png'
 import Link from "next/link";
@@ -8,6 +9,83 @@ import { usePathname } from "next/navigation";
 
 export default function BottomNav() {
   const pathname = usePathname();
+=======
+import { FaRegUser } from "react-icons/fa";
+import Image from "next/image";
+import { MdOutlineAddBox } from "react-icons/md";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { CiSquarePlus } from "react-icons/ci";
+import { RewardModal } from "../RewardModal";
+import { useState, useEffect } from "react";
+import { getUserData } from "@/lib/userState";
+import { supabase } from "@/lib/supabase";
+import HomeIcon from '/public/icons/home.png'
+import HairIcon from '/public/icons/hairstyle.png'
+
+export default function BottomNav() {
+  const pathname = usePathname();
+  const [showRewardModal, setShowRewardModal] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    try {
+      // Get user data from localStorage
+      const localUserData = getUserData();
+      
+      if (localUserData?.user_id) {
+        // Fetch latest data from Supabase
+        const { data: supabaseData, error } = await supabase
+          .from('user')
+          .select('*')
+          .eq('user_id', localUserData.user_id)
+          .single();
+
+        if (!error && supabaseData) {
+          setUserData({
+            ...localUserData,
+            points: supabaseData.points,
+            onboarding_completed: supabaseData.onboarding_completed,
+            face_shape: supabaseData.face_shape,
+            body_shape: supabaseData.body_shape,
+            skin_tone: supabaseData.skin_tone,
+            personality: supabaseData.personality,
+            total_referrals: supabaseData.total_referrals,
+            last_login_date: supabaseData.last_login_date,
+            user_id: supabaseData.user_id
+          });
+        } else {
+          setUserData(localUserData);
+        }
+      } else {
+        setUserData(localUserData);
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      setUserData(getUserData());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePointsUpdate = async (newUserData: any) => {
+    setUserData(newUserData);
+    // Optionally update localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auraasync_user_data', JSON.stringify(newUserData));
+    }
+    
+    // Refresh user data from Supabase to ensure consistency
+    setTimeout(() => {
+      loadUserData();
+    }, 500);
+  };
+>>>>>>> feature/points-system
 
   const isActive = (path: string) => {
     if (!pathname) return false;
@@ -28,6 +106,10 @@ export default function BottomNav() {
         >
           <Home className="h-8 w-8" />
           {/* <span className="text-xs">Home</span> */}
+<<<<<<< HEAD
+=======
+        
+>>>>>>> feature/points-system
         </Link>
 
         {/* Dashboard */}
@@ -37,10 +119,30 @@ export default function BottomNav() {
             isActive('/dashboard') ? 'text-blue-400' : 'text-white hover:text-blue-400'
           }`}
         >
+<<<<<<< HEAD
           <UserCircle className="h-8 w-8" />
           {/* <span className="text-xs">Dashboard</span> */}
         </Link>
 
+=======
+          <FaRegUser className="h-8 w-8" />
+          {/* <span className="text-xs">Dashboard</span> */}
+        </Link>
+
+        <>
+          {/* reward modal trigger */}
+          <button
+            type="button"
+            onClick={() => setShowRewardModal(true)}
+            className={`flex flex-col items-center space-y-1 transition-colors ${
+              isActive("/dashboard") ? "text-blue-400" : "text-white hover:text-blue-400"
+            }`}
+          >
+            <MdOutlineAddBox  className="h-9 w-9" />
+          </button>
+        </>
+
+>>>>>>> feature/points-system
         {/* Search */}
         <Link 
           href="/search" 
@@ -55,11 +157,19 @@ export default function BottomNav() {
         {/* Hairstyle */}
         <Link 
           href="/hairstyle" 
+<<<<<<< HEAD
           className={`flex flex-col items-center space-y-1 transition-colors ${
             isActive('/hairstyle') ? 'text-blue-400' : 'text-white hover:text-blue-400'
           }`}
         >
           <Image src={HairIcon} width={24} height={24} alt="hair icon" className="h-6 w-6"/>
+=======
+          className={`flex flex-col items-center space-y-1  transition-colors ${
+            isActive('/hairstyle') ? 'text-blue-400' : 'text-white hover:text-blue-400'
+          }`}
+        >
+          <Image src={HairIcon} width={30} height={30} alt="hair icon" className="h-6 w-6"/>
+>>>>>>> feature/points-system
           {/* <span className="text-xs">Hairstyle</span> */}
         </Link>
 
@@ -74,6 +184,24 @@ export default function BottomNav() {
           <span className="text-xs">Profile</span>
         </Link> */}
       </div>
+<<<<<<< HEAD
+=======
+
+      {/* Reward Modal */}
+      {showRewardModal && userData && (
+        <RewardModal 
+          onClose={() => {
+            setShowRewardModal(false)
+            // Refresh data after modal closes
+            setTimeout(() => {
+              loadUserData()
+            }, 300)
+          }} 
+          userData={userData}
+          onPointsUpdate={handlePointsUpdate}
+        />
+      )}
+>>>>>>> feature/points-system
     </nav>
   );
 }

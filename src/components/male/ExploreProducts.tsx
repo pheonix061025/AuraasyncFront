@@ -40,6 +40,7 @@ const ExploreProducts = ({ gender }: ExploreProductsProps) => {
                 throw new Error('No products found in explore data');
             }
 
+<<<<<<< HEAD
             console.log(`Total products loaded: ${allProducts.length}`);
             console.log(`Looking for gender: ${gender}`);
 
@@ -48,6 +49,11 @@ const ExploreProducts = ({ gender }: ExploreProductsProps) => {
 
             console.log(`Filtered products for ${gender}: ${filteredProducts.length}`);
 
+=======
+            // Filter products by gender
+            const filteredProducts = allProducts.filter(product => product.type === gender);
+
+>>>>>>> feature/points-system
             if (filteredProducts.length === 0) {
                 throw new Error(`No ${gender} products found in explore data`);
             }

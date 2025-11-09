@@ -1,10 +1,18 @@
+<<<<<<< HEAD
 ﻿"use client";
+=======
+"use client";
+>>>>>>> feature/points-system
 
 import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Webcam from "react-webcam";
+<<<<<<< HEAD
 import { signInWithPopup, signOut, onAuthStateChanged, User } from "firebase/auth";
+=======
+import { signInWithPopup, signOut, onAuthStateChanged, User, fetchSignInMethodsForEmail } from "firebase/auth";
+>>>>>>> feature/points-system
 import { auth, googleProvider } from "../../lib/firebase";
 import axios from "axios";
 import {
@@ -12,6 +20,12 @@ import {
   updateUserData,
   markOnboardingCompleted,
 } from "../../lib/userState";
+<<<<<<< HEAD
+=======
+import { pointsManager, awardSignupPoints, awardAnalysisPoints, awardOnboardingPoints, savePointsToSupabase } from "../../lib/pointsSystem";
+import { useAutoReviewPopup } from "../../hooks/useReviewPopup";
+import ReviewPopup from "../../components/ReviewPopup";
+>>>>>>> feature/points-system
 import FaceAnalysisWidget from "../../components/FaceAnalysisWidget";
 import SkinToneAnalysisWidget from "../../components/SkinToneAnalysisWidget";
 import BodyAnalysisWidget from "../../components/BodyAnalysisWidget";
@@ -68,6 +82,13 @@ interface UserData {
   body_shape: string | null;
   personality: string | null;
   onboarding_completed: boolean;
+<<<<<<< HEAD
+=======
+  user_id?: number;
+  points?: number;
+  referral_code?: string;
+  total_referrals?: number;
+>>>>>>> feature/points-system
 }
 
 interface Product {
@@ -91,6 +112,79 @@ export default function Onboarding() {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const singleMode = searchParams?.get('mode') === 'single';
   const singleTarget = (searchParams?.get('target') as 'skin' | 'face' | 'body' | 'personality' | null) || null;
+<<<<<<< HEAD
+=======
+  
+  // Add loading state to prevent flash of login screen
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  
+  // Review popup hook
+  const reviewPopup = useAutoReviewPopup();
+  
+  // Check if user is already authenticated and has completed onboarding
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser && !singleMode) {
+        try {
+          // Get the Firebase ID token
+          const idToken = await firebaseUser.getIdToken();
+          
+          // Check user's onboarding status from Supabase
+          const response = await fetch('/api/user', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${idToken}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const userData = await response.json();
+            console.log('User data from API:', userData)
+            
+            // If user has completed onboarding, redirect to appropriate gender page
+            if (userData.onboarding_completed && userData.gender){
+              console.log('Redirecting to gender page:', userData.gender);
+              router.replace(userData.gender === 'male' ? '/male' : '/female');
+              return;
+            }
+            
+            // If user exists but hasn't completed onboarding, set their data and go to basic info
+            if (userData && !userData.onboarding_completed) {
+              console.log('User exists but onboarding not completed, going to basic info');
+              setUserDataState({
+                email: userData.email || firebaseUser.email || "",
+                name: userData.name || firebaseUser.displayName || "",
+                gender: userData.gender || "",
+                location: userData.location || "Mumbai",
+                skin_tone: userData.skin_tone || "",
+                face_shape: userData.face_shape || null,
+                body_shape: userData.body_shape || null,
+                personality: userData.personality || null,
+                onboarding_completed: false,
+              });
+              setCurrentStep(STEPS.BASIC_INFO);
+              setIsCheckingAuth(false);
+            }
+          } else {
+            console.log('User API returned non-OK status');
+            setIsCheckingAuth(false);
+          }
+        } catch (error) {
+          console.error('Error checking user status:', error);
+          // If there's an error, continue with normal flow
+          setIsCheckingAuth(false);
+        }
+      } else {
+        // No user logged in or in single mode
+        setIsCheckingAuth(false);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [router, singleMode]);
+  
+>>>>>>> feature/points-system
    // Initialize step immediately based on query to avoid flashing the login step in single mode
   const initialStep: StepType = (() => {
     if (singleMode) {
@@ -125,6 +219,53 @@ export default function Onboarding() {
     }
   }, [singleMode, singleTarget]);
 
+<<<<<<< HEAD
+=======
+  // Helper function to save user data to Supabase
+  const saveUserDataToSupabase = async (dataToSave: UserData) => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        console.warn('No authenticated user for Supabase save');
+        return false;
+      }
+      
+      const idToken = await currentUser.getIdToken();
+      const response = await fetch('/api/user', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: dataToSave.email,
+          name: dataToSave.name,
+          gender: dataToSave.gender,
+          location: dataToSave.location || 'Mumbai',
+          skin_tone: dataToSave.skin_tone || null,
+          face_shape: dataToSave.face_shape || null,
+          body_shape: dataToSave.body_shape || null,
+          personality: dataToSave.personality || null,
+          // Use nullish coalescing to preserve undefined and only default null/undefined to false
+          onboarding_completed: dataToSave.onboarding_completed ?? false
+        })
+      });
+      
+      if (response.ok) {
+        const updatedUserData = await response.json();
+        console.log('✅ User data saved to Supabase:', updatedUserData);
+        return true;
+      } else {
+        console.error('❌ Failed to save user data to Supabase:', response.statusText);
+        return false;
+      }
+    } catch (err) {
+      console.error('❌ Error saving user data to Supabase:', err);
+      return false;
+    }
+  };
+
+>>>>>>> feature/points-system
   // Helpers for single-mode save from within step UIs
   const saveSingleModeAndReturn = async (updates: Partial<UserData>) => {
     if (!singleMode || !singleTarget) return false;
@@ -135,6 +276,7 @@ export default function Onboarding() {
         return true;
       }
       const idToken = await currentUser.getIdToken();
+<<<<<<< HEAD
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const existing = userData;
       const body = {
@@ -157,6 +299,62 @@ export default function Onboarding() {
       console.error('Single-mode save failed', err);
     } finally {
       router.replace('/dashboard');
+=======
+      
+      // Merge updates with existing userData
+      const updatedData = { ...userData, ...updates };
+      
+      // Use your local API to update user data
+      const response = await fetch('/api/user', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: updatedData.email,
+          name: updatedData.name,
+          gender: updatedData.gender,
+          location: updatedData.location || 'Mumbai',
+          skin_tone: updatedData.skin_tone || null,
+          face_shape: updatedData.face_shape || null,
+          body_shape: updatedData.body_shape || null,
+          personality: updatedData.personality || null,
+          onboarding_completed: updatedData.onboarding_completed || false
+        })
+      });
+      
+      if (response.ok) {
+        const updatedUserData = await response.json();
+        const finalData = { ...updatedData, ...updatedUserData };
+        
+        // Update localStorage with the new data
+        updateUserData(finalData);
+        localStorage.setItem('aurasync_user_data', JSON.stringify(finalData));
+        
+        console.log('✅ Single-mode data saved to Supabase and localStorage:', finalData);
+        
+        // Update local state
+        setUserData(finalData);
+        setUserDataState(finalData);
+      } else {
+        console.error('❌ Failed to save single-mode data:', response.statusText);
+        // Still update localStorage even if Supabase save fails
+        updateUserData(updatedData);
+        localStorage.setItem('aurasync_user_data', JSON.stringify(updatedData));
+      }
+    } catch (err) {
+      console.error('❌ Single-mode save failed:', err);
+      // Still update localStorage even if API call fails
+      const updatedData = { ...userData, ...updates };
+      updateUserData(updatedData);
+      localStorage.setItem('aurasync_user_data', JSON.stringify(updatedData));
+    } finally {
+      // Add a small delay to ensure data is saved before redirect
+      setTimeout(() => {
+        router.replace('/dashboard');
+      }, 500);
+>>>>>>> feature/points-system
     }
     return true;
   };
@@ -175,6 +373,7 @@ export default function Onboarding() {
           // Get the Firebase ID token
           const idToken = await result.user.getIdToken();
 
+<<<<<<< HEAD
           // Call backend API to verify token and create/update user
           const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -197,12 +396,41 @@ export default function Onboarding() {
             );
 
             const backendUserData = response.data;
+=======
+          try {
+            // Use your local API to create/update user in Supabase
+            const response = await fetch('/api/user', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${idToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                email: result.user.email,
+                name: result.user.displayName,
+                gender: '',
+                location: 'Mumbai', // Default location
+                skin_tone: '',
+                face_shape: null,
+                body_shape: null,
+                personality: null,
+                onboarding_completed: false
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to create/update user');
+            }
+
+            const backendUserData = await response.json();
+>>>>>>> feature/points-system
 
             // Create user data for frontend state
             const userData: UserData = {
               email: backendUserData.email || result.user.email || "",
               name: backendUserData.name || result.user.displayName || "",
               gender: backendUserData.gender || "",
+<<<<<<< HEAD
               location: backendUserData.location || "Mumbai", // Default location
               skin_tone: backendUserData.skin_tone || "",
               face_shape: backendUserData.face_shape || null,
@@ -282,17 +510,27 @@ export default function Onboarding() {
               email: backendUserData.email || user.email || "",
               name: backendUserData.name || user.displayName || "",
               gender: backendUserData.gender || "",
+=======
+>>>>>>> feature/points-system
               location: backendUserData.location || "Mumbai",
               skin_tone: backendUserData.skin_tone || "",
               face_shape: backendUserData.face_shape || null,
               body_shape: backendUserData.body_shape || null,
               personality: backendUserData.personality || null,
               onboarding_completed: backendUserData.onboarding_completed || false,
+<<<<<<< HEAD
+=======
+              user_id: backendUserData.user_id || undefined,
+              points: backendUserData.points || 0,
+              referral_code: backendUserData.referral_code || '',
+              total_referrals: backendUserData.total_referrals || 0
+>>>>>>> feature/points-system
             };
 
             setUserData(userData);
             setUserDataState(userData);
 
+<<<<<<< HEAD
             // If user exists but onboarding is not completed, continue from where they left off
             if (!backendUserData.is_new_user) {
               setCurrentStep(STEPS.BASIC_INFO);
@@ -308,6 +546,47 @@ export default function Onboarding() {
 
       return () => unsubscribe();
     }, [router]);
+=======
+            // Proceed to onboarding since user just logged in
+            setCurrentStep(STEPS.BASIC_INFO);
+
+          } catch (apiError: any) {
+            console.error("API error:", apiError);
+            alert("Authentication failed. Please try again.");
+            await signOut(auth);
+          }
+        }
+      } catch (error: any) {
+        console.error("Google login error:", error?.code, error?.message, error);
+        const code = error?.code as string | undefined;
+        const message = error?.message as string | undefined;
+        const email = error?.customData?.email as string | undefined;
+
+        if (code === 'auth/popup-closed-by-user') {
+          alert("Sign-in was cancelled. Please try again.");
+        } else if (code === 'auth/popup-blocked') {
+          alert("Popup was blocked by the browser. Allow popups for this site and try again.");
+        } else if (code === 'auth/unauthorized-domain') {
+          alert("Unauthorized domain. Add your domain (e.g., localhost, 127.0.0.1, yoursite.com) to Firebase Auth > Settings > Authorized domains.");
+        } else if (code === 'auth/operation-not-allowed') {
+          alert("Google Sign-in is disabled. Enable the Google provider in Firebase Console > Authentication > Sign-in method.");
+        } else if (code === 'auth/invalid-api-key') {
+          alert("Invalid Firebase API key. Check NEXT_PUBLIC_FIREBASE_API_KEY and restart the dev server.");
+        } else if (code === 'auth/account-exists-with-different-credential' && email) {
+          try {
+            const methods = await fetchSignInMethodsForEmail(auth, email);
+            alert(`An account already exists with a different sign-in method for ${email}. Supported methods: ${methods.join(', ')}. Please sign in using one of these methods, then link Google from your account settings.`);
+          } catch (e) {
+            alert("Account exists with different credential. Please sign in with your original method and link Google later.");
+          }
+        } else {
+          alert(message || "Failed to sign in with Google. Please try again.");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+>>>>>>> feature/points-system
 
     return (
       <motion.div
@@ -354,6 +633,7 @@ export default function Onboarding() {
             {isLoading ? "Signing in..." : "Continue with Google"}
           </button>
 
+<<<<<<< HEAD
           {!user && (
             <div className="mt-8">
               <button
@@ -373,6 +653,27 @@ export default function Onboarding() {
                   setUserData(mockUserData);
                   setUserDataState(mockUserData);
                   setCurrentStep(STEPS.BASIC_INFO);
+=======
+          {!user && process.env.NODE_ENV === 'development' && (
+            <div className="mt-8">
+              <button
+                onClick={() => {
+                // For testing - skip to next step
+                const mockUserData: UserData = {
+                  email: "test@gmail.com", 
+                  name: "",
+                  gender: "",
+                  location: "Mumbai",
+                  skin_tone: "",
+                  face_shape: null,
+                  body_shape: null,
+                  personality: null,
+                  onboarding_completed: false,
+                };
+                setUserData(mockUserData);
+                setUserDataState(mockUserData);
+                setCurrentStep(STEPS.BASIC_INFO);
+>>>>>>> feature/points-system
                 }}
                 className="text-gray-400 hover:text-white transition-colors"
               >
@@ -491,7 +792,11 @@ export default function Onboarding() {
     const [localName, setLocalName] = useState(userData.name || "");
     const [localGender, setLocalGender] = useState(userData.gender || "");
 
+<<<<<<< HEAD
     const handleSubmit = (e: React.FormEvent) => {
+=======
+    const handleSubmit = async (e: React.FormEvent) => {
+>>>>>>> feature/points-system
       e.preventDefault();
       if (localName && localGender) {
         const updatedData = {
@@ -507,6 +812,44 @@ export default function Onboarding() {
         // Update localStorage with the new data
         localStorage.setItem('aurasync_user_data', JSON.stringify(updatedData));
 
+<<<<<<< HEAD
+=======
+        // Also save to database
+        try {
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            const idToken = await currentUser.getIdToken();
+            
+            const response = await fetch('/api/user', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${idToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                email: updatedData.email,
+                name: updatedData.name,
+                gender: updatedData.gender,
+                location: updatedData.location || 'Mumbai',
+                skin_tone: updatedData.skin_tone || '',
+                face_shape: updatedData.face_shape || null,
+                body_shape: updatedData.body_shape || null,
+                personality: updatedData.personality || null,
+                // IMPORTANT: Don't set onboarding_completed during intermediate steps
+                // Only set it explicitly to true in the final completion step
+                onboarding_completed: updatedData.onboarding_completed ?? false
+              })
+            });
+            
+            if (!response.ok) {
+              console.error('Failed to save gender to database');
+            }
+          }
+        } catch (error) {
+          console.error('Error saving gender to database:', error);
+        }
+
+>>>>>>> feature/points-system
         setCurrentStep(STEPS.SKIN_FACE_ANALYSIS);
       }
     };
@@ -724,6 +1067,7 @@ export default function Onboarding() {
     // Mobile-only preloader before starting camera capture
     const [isMobilePreloading, setIsMobilePreloading] = useState(false);
 
+<<<<<<< HEAD
     const handleNext = () => {
       if (analysisData.skin_tone) {
         const updatedData = { ...userData, ...analysisData };
@@ -732,6 +1076,34 @@ export default function Onboarding() {
 
         // Update localStorage with the new data
         localStorage.setItem('aurasync_user_data', JSON.stringify(updatedData));
+=======
+    const handleNext = async () => {
+      if (analysisData.skin_tone) {
+        const updatedData = { ...userData, ...analysisData };
+        
+        // Award points for completing skin/face analysis
+        const pointsResult = awardAnalysisPoints(updatedData, 'Skin & Face Analysis');
+        const finalData = pointsResult.userData;
+        
+        // Save points to Supabase if user_id is available
+        if (finalData.user_id) {
+          await savePointsToSupabase(finalData, pointsResult.transaction);
+        }
+        
+        // Save analysis data to Supabase
+        await saveUserDataToSupabase(finalData);
+        
+        updateUserData(finalData);
+        setUserDataState(finalData);
+
+        // Update localStorage with the new data
+        localStorage.setItem('aurasync_user_data', JSON.stringify(finalData));
+
+        // Show review popup after analysis completion
+        setTimeout(() => {
+          reviewPopup.showAfterAnalysis();
+        }, 1000);
+>>>>>>> feature/points-system
 
         setCurrentStep(STEPS.BODY_ANALYSIS);
       }
@@ -793,7 +1165,11 @@ export default function Onboarding() {
 
         // Start automatic capture sequence
         for (let i = 0; i < 3; i++) {
+<<<<<<< HEAD
           await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
+=======
+          await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 2 seconds
+>>>>>>> feature/points-system
           await captureImage();
           setProgress((i + 1) * 25);
         }
@@ -1461,7 +1837,11 @@ export default function Onboarding() {
                   <SkinToneManualInput />
                 ) : showManualInput && currentAnalysis === "face_shape" ? (
                   <FaceShapeManualInput />
+<<<<<<< HEAD
                 ) : currentAnalysis === "face_shape" && !showManualInput && !showUpload ? (
+=======
+                ) : (currentAnalysis === "face_shape" || currentAnalysis === "skin_tone") && showCamera && !showManualInput && !showUpload ? (
+>>>>>>> feature/points-system
                   <CameraAnalysis />
                 ) : (
                   <Image
@@ -1932,6 +2312,7 @@ export default function Onboarding() {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
+<<<<<<< HEAD
     const handleNext = () => {
       const updatedData = { ...userData, body_shape: analysisData.body_shape };
       updateUserData(updatedData);
@@ -1939,6 +2320,33 @@ export default function Onboarding() {
 
       // Update localStorage with the new data
       localStorage.setItem('aurasync_user_data', JSON.stringify(updatedData));
+=======
+    const handleNext = async () => {
+      const updatedData = { ...userData, body_shape: analysisData.body_shape };
+      
+      // Award points for completing body analysis
+      const pointsResult = awardAnalysisPoints(updatedData, 'Body Analysis');
+      const finalData = pointsResult.userData;
+      
+      // Save points to Supabase if user_id is available
+      if (finalData.user_id) {
+        await savePointsToSupabase(finalData, pointsResult.transaction);
+      }
+      
+      // Save analysis data to Supabase
+      await saveUserDataToSupabase(finalData);
+      
+      updateUserData(finalData);
+      setUserDataState(finalData);
+
+      // Update localStorage with the new data
+      localStorage.setItem('aurasync_user_data', JSON.stringify(finalData));
+
+      // Show review popup after analysis completion
+      setTimeout(() => {
+        reviewPopup.showAfterAnalysis();
+      }, 1000);
+>>>>>>> feature/points-system
 
       setCurrentStep(STEPS.PERSONALITY_ANALYSIS);
     };
@@ -1996,9 +2404,55 @@ export default function Onboarding() {
 
         // Start automatic capture sequence
         for (let i = 0; i < 3; i++) {
+<<<<<<< HEAD
           await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
           await captureImage();
           setProgress((i + 1) * 25);
+=======
+          // small delay between captures (2s)
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+
+          if (!videoRef.current || !canvasRef.current) break;
+
+          const video = videoRef.current;
+          const canvas = canvasRef.current;
+          canvas.width = video.videoWidth || 640;
+          canvas.height = video.videoHeight || 480;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) continue;
+
+          // draw current video frame to canvas (this will be used as preview)
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          // create a data URL preview immediately so UI can show the captured frame
+          try {
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+            setCapturedImages((prev) => [...prev, dataUrl]);
+
+            // update progress based on number of captures
+            setProgress(Math.min(100, Math.round(((i + 1) / 3) * 100)));
+          } catch (err) {
+            console.warn("Failed to create preview dataURL", err);
+          }
+
+          // convert canvas to blob and analyze (await so we preserve order)
+          await new Promise<void>((resolveBlob) => {
+            canvas.toBlob(
+              async (blob) => {
+                if (blob) {
+                  try {
+                    await analyzeImage(blob);
+                  } catch (e) {
+                    console.error("analyzeImage error:", e);
+                  }
+                }
+                resolveBlob();
+              },
+              "image/jpeg",
+              0.9
+            );
+          });
+>>>>>>> feature/points-system
         }
 
         // Stop camera after capturing
@@ -3116,6 +3570,7 @@ export default function Onboarding() {
     const [showPersonalityInstructions, setShowPersonalityInstructions] =
       useState(false);
 
+<<<<<<< HEAD
     const handleNext = (personalityType: string) => {
       const updatedData = { ...userData, personality: personalityType };
       updateUserData(updatedData);
@@ -3124,6 +3579,39 @@ export default function Onboarding() {
       // Update localStorage with the new data
       localStorage.setItem('aurasync_user_data', JSON.stringify(updatedData));
 
+=======
+    const handleNext = async (personalityType: string) => {
+      const updatedData = { ...userData, personality: personalityType };
+      
+      // Award points for completing personality analysis
+      const pointsResult = awardAnalysisPoints(updatedData, 'Personality Analysis');
+      const finalData = pointsResult.userData;
+      
+      // Save points to Supabase if user_id is available
+      if (finalData.user_id) {
+        await savePointsToSupabase(finalData, pointsResult.transaction);
+      }
+      
+      // Save analysis data to Supabase
+      await saveUserDataToSupabase(finalData);
+      
+      updateUserData(finalData);
+      setUserDataState(finalData);
+
+      // Update localStorage with the new data
+      localStorage.setItem('aurasync_user_data', JSON.stringify(finalData));
+
+      // Show review popup after analysis completion
+      setTimeout(() => {
+        reviewPopup.showAfterAnalysis();
+      }, 1000);
+
+      // Trigger coin-to-wallet animation (from screen center to wallet)
+      if (typeof window !== 'undefined') {
+        const event = new CustomEvent('coin:to-wallet', { detail: { count: 10 } });
+        window.dispatchEvent(event);
+      }
+>>>>>>> feature/points-system
       setCurrentStep(STEPS.COMPLETE);
     };
 
@@ -3164,7 +3652,11 @@ export default function Onboarding() {
                     Welcome to the Personality Analysis Test! ✨
                   </p>
                   <p className="text-sm text-gray-300 mb-3">
+<<<<<<< HEAD
                     This test identifies your personality type (MBTI) to tailor fashion suggestions.
+=======
+                    This test identifies your style personality to tailor fashion suggestions.localhost:3000
+>>>>>>> feature/points-system
                   </p>
                   <ul className="list-disc list-inside text-sm space-y-2 mb-3">
                     <li>16-20 questions in total.</li>
@@ -3230,7 +3722,11 @@ export default function Onboarding() {
 
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="w-full">
+<<<<<<< HEAD
                     <PersonalityAnalysisWidget onComplete={handleNext} />
+=======
+                    <PersonalityAnalysisWidget onComplete={handleNext} gender={userData.gender}/>
+>>>>>>> feature/points-system
                   </div>
                 </div>
               </div>
@@ -3277,7 +3773,11 @@ export default function Onboarding() {
                           Welcome to the Personality Analysis Test! ✨
                         </p>
                         <p className="text-sm text-gray-300 mb-3">
+<<<<<<< HEAD
                           This test identifies your personality type (MBTI) to tailor fashion suggestions.
+=======
+                          This test identifies your style personality to tailor fashion suggestions.
+>>>>>>> feature/points-system
                         </p>
                         <ul className="list-disc list-inside text-sm space-y-1 mb-3">
                           <li>16-20 questions in total.</li>
@@ -3332,7 +3832,11 @@ export default function Onboarding() {
               </div>
             ) : (
               <div className="w-full mt-20">
+<<<<<<< HEAD
                 <PersonalityAnalysisWidget onComplete={handleNext} />
+=======
+                <PersonalityAnalysisWidget onComplete={handleNext} gender={userData.gender} />
+>>>>>>> feature/points-system
               </div>
             )}
 
@@ -3410,6 +3914,7 @@ export default function Onboarding() {
   // Step 6: Complete Component
   const CompleteStep = ({ userData }: any) => {
     const handleComplete = async () => {
+<<<<<<< HEAD
       // Update user data with onboarding completed flag
       const completedUserData = { ...userData, onboarding_completed: true };
       markOnboardingCompleted();
@@ -3457,6 +3962,106 @@ export default function Onboarding() {
 
       // Redirect to dashboard after completing onboarding
       router.push(completedUserData.gender == "male" ? "/male" : "/female");
+=======
+      try {
+        console.log('🎯 handleComplete called');
+        console.log('📊 userData:', userData);
+        
+        // Award points for completing full onboarding
+        const onboardingResult = awardOnboardingPoints(userData);
+        const completedUserData = { ...onboardingResult.userData, onboarding_completed: true };
+        
+        console.log('✅ completedUserData:', completedUserData);
+        
+        // Save points to Supabase if user_id is available
+        if (completedUserData.user_id) {
+          await savePointsToSupabase(completedUserData, onboardingResult.transaction);
+        }
+        
+        markOnboardingCompleted();
+
+        // Show review popup after onboarding completion
+        setTimeout(() => {
+          reviewPopup.showAfterOnboarding();
+        }, 2000);
+
+        // Complete onboarding by sending all user data to your local API
+        const currentUser = auth.currentUser;
+        console.log('👤 Current user:', currentUser?.email);
+        
+        if (!currentUser) {
+          console.error('❌ No current user found');
+          alert('No user logged in. Please login again.');
+          router.push('/onboarding');
+          return;
+        }
+        
+        const idToken = await currentUser.getIdToken();
+        
+        console.log('📤 Sending data to API:', {
+          email: completedUserData.email,
+          name: completedUserData.name,
+          gender: completedUserData.gender,
+          location: completedUserData.location || "Mumbai",
+          skin_tone: completedUserData.skin_tone,
+          face_shape: completedUserData.face_shape,
+          body_shape: completedUserData.body_shape,
+          personality: completedUserData.personality,
+          onboarding_completed: true
+        });
+
+        const response = await fetch('/api/user', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: completedUserData.email,
+            name: completedUserData.name,
+            gender: completedUserData.gender,
+            location: completedUserData.location || "Mumbai",
+            skin_tone: completedUserData.skin_tone,
+            face_shape: completedUserData.face_shape,
+            body_shape: completedUserData.body_shape,
+            personality: completedUserData.personality,
+            onboarding_completed: true
+          })
+        });
+
+        console.log('📥 API response status:', response.status);
+
+        if (response.ok) {
+          const updatedUserData = await response.json();
+          console.log('✅ Updated user data from API:', updatedUserData);
+          
+          // Update local state with fresh data
+          setUserData(updatedUserData);
+          setUserDataState(updatedUserData);
+          
+          // Redirect to gender-specific page
+          const redirectPath = completedUserData.gender === "male" ? "/male" : "/female";
+          console.log('🚀 Redirecting to:', redirectPath);
+          router.push(redirectPath);
+        } else {
+          const errorText = await response.text();
+          console.error('❌ API error response:', errorText);
+          throw new Error('Failed to complete onboarding: ' + errorText);
+        }
+      } catch (error) {
+        console.error('❌ ERROR in handleComplete:', error);
+        alert('An error occurred. Redirecting anyway...');
+        // Still redirect even if API fails
+        const redirectPath = userData?.gender === "male" ? "/male" : "/female";
+        console.log('🚀 Redirecting anyway to:', redirectPath);
+        if (redirectPath && userData?.gender) {
+          router.push(redirectPath);
+        } else {
+          console.error('❌ No gender set, cannot redirect');
+          alert('Please complete all steps including gender selection.');
+        }
+      }
+>>>>>>> feature/points-system
     };
 
     return (
@@ -3482,8 +4087,16 @@ export default function Onboarding() {
             </p>
 
             <button
+<<<<<<< HEAD
               onClick={handleComplete}
               className="text-white bg-blue-600 px-8 py-4 rounded-lg font-semibold text-lg hover:from-blue-600 hover:to-purple-700 transition-all"
+=======
+              onClick={() => {
+                console.log('🔘 Button clicked!');
+                handleComplete();
+              }}
+              className="text-white bg-blue-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-all cursor-pointer z-50 relative"
+>>>>>>> feature/points-system
             >
               Start Exploring
             </button>
@@ -3530,8 +4143,16 @@ export default function Onboarding() {
             </p>
 
             <button
+<<<<<<< HEAD
               onClick={handleComplete}
               className="text-white bg-blue-600 px-6 py-3 rounded-lg font-semibold text-base hover:from-blue-600 hover:to-purple-700 transition-all"
+=======
+              onClick={() => {
+                console.log('🔘 Mobile Button clicked!');
+                handleComplete();
+              }}
+              className="text-white bg-blue-600 px-6 py-3 rounded-lg font-semibold text-base hover:bg-blue-700 transition-all cursor-pointer z-50 relative"
+>>>>>>> feature/points-system
             >
               Start Exploring
             </button>
@@ -3544,6 +4165,7 @@ export default function Onboarding() {
   // Render current step
   return (
     <AnimatePresence mode="wait">
+<<<<<<< HEAD
       {currentStep === STEPS.LOGIN && <LoginStep key="login" />}
 
       {currentStep === STEPS.BASIC_INFO && (
@@ -3593,3 +4215,82 @@ export default function Onboarding() {
     </AnimatePresence>
   );
 }
+=======
+      {/* Show loading screen while checking authentication */}
+      {isCheckingAuth ? (
+        <motion.div
+          key="checking-auth"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center"
+        >
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+            <p className="text-white text-lg">Checking your account...</p>
+          </div>
+        </motion.div>
+      ) : (
+        <>
+          {currentStep === STEPS.LOGIN && <LoginStep key="login" />}
+
+          {currentStep === STEPS.BASIC_INFO && (
+            <BasicInfoStep
+              key="basic_info"
+              userData={userData}
+              updateUserData={updateUserData}
+              setUserDataState={setUserDataState}
+              setCurrentStep={setCurrentStep}
+              STEPS={STEPS}
+            />
+          )}
+
+          {currentStep === STEPS.SKIN_FACE_ANALYSIS && (
+            <SkinFaceAnalysisStep
+              key="skin_analysis"
+              userData={userData}
+              setUserDataState={setUserDataState}
+              setCurrentStep={setCurrentStep}
+              STEPS={STEPS}
+            />
+          )}
+
+          {currentStep === STEPS.BODY_ANALYSIS && (
+            <BodyAnalysisStep
+              key="body_analysis"
+              userData={userData}
+              setUserDataState={setUserDataState}
+              setCurrentStep={setCurrentStep}
+              STEPS={STEPS}
+            />
+          )}
+
+          {currentStep === STEPS.PERSONALITY_ANALYSIS && (
+            <PersonalityAnalysisStep
+              key="personality_analysis"
+              userData={userData}
+              setUserDataState={setUserDataState}
+              setCurrentStep={setCurrentStep}
+              STEPS={STEPS}
+            />
+          )}
+
+          {currentStep === STEPS.COMPLETE && (
+            <CompleteStep key="complete" userData={userData} />
+          )}
+        </>
+      )}
+
+      {/* Review Popup */}
+    {/* <ReviewPopup
+        isOpen={reviewPopup.isOpen}
+        onClose={reviewPopup.closePopup}
+        onRateNow={reviewPopup.handleRateNow}
+        onRemindLater={reviewPopup.handleRemindLater}
+        onNeverShow={reviewPopup.handleNeverShow}
+        triggerAction={reviewPopup.triggerAction}
+      /> */}
+    </AnimatePresence>
+  );
+}
+>>>>>>> feature/points-system
