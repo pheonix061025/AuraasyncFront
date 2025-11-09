@@ -11,6 +11,7 @@ export interface ReviewPopupPreferences {
     onboarding_complete: boolean;
     outfit_pairing: boolean;
     daily_login: boolean;
+    dashboard_visit?: boolean; // Optional for backward compatibility
     rewards_incentive?: boolean; // Optional for backward compatibility
   };
 }
@@ -36,6 +37,7 @@ export class ReviewPopupManager {
 
   constructor() {
     this.preferences = this.loadPreferences();
+    this.loadReviewData(); // Load existing review data on initialization
   }
 
   // Load user preferences from localStorage
@@ -67,6 +69,7 @@ export class ReviewPopupManager {
         onboarding_complete: true,
         outfit_pairing: true,
         daily_login: false,
+        dashboard_visit: true, // Allow review popup on dashboard visit
         rewards_incentive: true // Allow review popup from rewards modal
       }
     };
@@ -87,6 +90,11 @@ export class ReviewPopupManager {
   shouldShowPopup(action: string): boolean {
     // Don't show if user disabled it
     if (this.preferences.neverShowAgain) {
+      return false;
+    }
+
+    // Don't show if user has already submitted a review
+    if (this.hasUserReviewed()) {
       return false;
     }
 
@@ -142,7 +150,11 @@ export class ReviewPopupManager {
     };
 
     this.reviewData.push(reviewData);
+    
+    // Mark as shown and never show again after submission
     this.markPopupShown();
+    this.preferences.neverShowAgain = true;
+    this.savePreferences();
 
     // Save review data locally
     this.saveReviewData();
@@ -352,6 +364,39 @@ export class ReviewPopupManager {
     return this.reviewData.length > 0;
   }
 
+  // Check if user has submitted a review in the database
+  async hasUserReviewedInDatabase(user_id: number): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+
+    try {
+      const { supabase } = await import('./supabase');
+      
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('id')
+        .eq('user_id', user_id)
+        .limit(1);
+
+      if (error) {
+        console.error('Error checking user reviews in database:', error);
+        return false;
+      }
+
+      const hasReviewed = data && data.length > 0;
+      
+      // If user has reviewed in database, update local preferences
+      if (hasReviewed) {
+        this.preferences.neverShowAgain = true;
+        this.savePreferences();
+      }
+
+      return hasReviewed;
+    } catch (error) {
+      console.error('Error checking database for reviews:', error);
+      return false;
+    }
+  }
+
   // Get trigger actions that are enabled
   getEnabledTriggers(): string[] {
     return Object.entries(this.preferences.popupTriggers)
@@ -382,4 +427,8 @@ export const handleReviewPopupNeverShow = (): void => {
 
 export const handleReviewSubmission = async (rating: number, feedback: string, triggerAction: string): Promise<void> => {
   await reviewPopupManager.handleReviewSubmission(rating, feedback, triggerAction);
+};
+
+export const checkUserReviewedInDatabase = async (user_id: number): Promise<boolean> => {
+  return await reviewPopupManager.hasUserReviewedInDatabase(user_id);
 };

@@ -15,6 +15,7 @@ import {
   savePointsToSupabase,
 } from "@/lib/pointsSystem";
 import { useAutoReviewPopup } from "@/hooks/useReviewPopup";
+import { checkUserReviewedInDatabase } from "@/lib/reviewPopupManager";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 import MaleProfile from '/public/ProfileMale.png'
@@ -337,15 +338,28 @@ setError("No authenticated user found");
     }
   }, [userData, isLoading, error, router]);
 
-  // Show feedback popup every time the dashboard loads (after 2 seconds)
+  // Show feedback popup on dashboard load (respects user preferences and timing)
   React.useEffect(() => {
-    if (!isLoading && userData) {
-      const timer = setTimeout(() => {
-        reviewPopup.showOnDashboardLoad();
-      }, 2000); // Show popup after 2 seconds of dashboard load
+    const checkAndShowPopup = async () => {
+      if (!isLoading && userData && userData.user_id) {
+        // First, check if user has already submitted a review in the database
+        const hasReviewedInDb = await checkUserReviewedInDatabase(userData.user_id);
+        
+        if (hasReviewedInDb) {
+          console.log('User has already submitted a review in database. Popup will not be shown.');
+          return;
+        }
 
-      return () => clearTimeout(timer);
-    }
+        // If no review in database, show popup after 2 seconds
+        const timer = setTimeout(() => {
+          reviewPopup.showPopup('dashboard_visit');
+        }, 2000);
+
+        return () => clearTimeout(timer);
+      }
+    };
+
+    checkAndShowPopup();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, userData]);
 
