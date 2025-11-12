@@ -3,13 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSecurePoints } from '@/hooks/useSecurePoints';
-import { Calendar, Coins, ArrowLeft } from 'lucide-react';
-import { getRedirectPath } from '@/lib/userState';
+import { Calendar, Coins, Camera, Info, ArrowLeft } from 'lucide-react';
+import { getUserData, setUserData, getRedirectPath } from '@/lib/userState';
 import OutfitUploadInterface from '@/components/OutfitUploadInterface';
 import OutfitCalendarGenerator from '@/components/OutfitCalendarGenerator';
-import calenderPc from '/public/CalenderPc.png';
-import calenderMobile from '/public/CalenderMobile.png';
+import calenderPc from '/public/CalenderPc.png'
+import calenderMobile from '/public/CalenderMobile.png'
 import Image from 'next/image';
+import BottomNav from '@/components/male/BottomNavigation';
 import WalletButton from '@/components/WalletButton';
 
 export default function CalendarPage() {
@@ -21,9 +22,11 @@ export default function CalendarPage() {
   const [isCalendarFlow, setIsCalendarFlow] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
 
+  // Use secure points hook instead of localStorage
   const { points: userPoints, isLoading: pointsLoading, refreshPoints } = useSecurePoints();
 
   useEffect(() => {
+    // Only load non-sensitive data from localStorage
     setLoading(false);
   }, []);
 
@@ -33,7 +36,12 @@ export default function CalendarPage() {
     setCurrentView('calendar');
   };
 
-  const handlePointsUpdate = async () => {
+  const handlePairingsGenerated = () => {
+    // Not used in calendar flow, but required by OutfitUploadInterface
+  };
+
+  const handlePointsUpdate = async (newPoints: number) => {
+    // Refresh points from secure source instead of setting manually
     await refreshPoints();
   };
 
@@ -45,6 +53,7 @@ export default function CalendarPage() {
 
     setIsCalendarFlow(true);
     try {
+      // Use secure points deduction (would be implemented in the secure points hook)
       await refreshPoints();
       setCurrentView('upload');
     } catch (error) {
@@ -74,7 +83,7 @@ export default function CalendarPage() {
     return (
       <OutfitUploadInterface
         onItemsUploaded={handleItemsUploaded}
-        onPairingsGenerated={() => {}}
+        onPairingsGenerated={handlePairingsGenerated}
         onClose={() => setCurrentView('main')}
         userPoints={userPoints}
         onPointsUpdate={handlePointsUpdate}
@@ -97,18 +106,14 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[url('/CalenderPc.png')] bg-cover bg-center relative overflow-hidden">
-      <WalletButton />
-
-      {/* Back Button */}
+    <div className="h-screen bg-[url('/CalenderPc.png')] bg-cover bg-center">
+      <WalletButton/>
       <button
         onClick={handleBack}
-        className="absolute top-4 left-4 z-20 p-3 bg-white/10 md:backdrop-blur-md rounded-full hover:bg-white/20 transition-all duration-300 group"
+        className="absolute top-4 left-4 z-20 p-3 bg-white/10 backdrop-blur-md rounded-full hover:bg-white/20 transition-all duration-300 group"
       >
         <ArrowLeft className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
       </button>
-
-      {/* Background Images */}
       <div className="absolute inset-0 z-0">
         <Image
           src={calenderPc}
@@ -120,178 +125,136 @@ export default function CalendarPage() {
           alt="AI-powered virtual try-on with digital mirror and styling interface"
           className="w-full h-full md:hidden object-cover"
         />
-        {/* Gentle overlay for improved readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#00000015] via-[#00000010] to-[#00000000]"></div>
+        {/* Overlay for better text readability */}
+        {/* <div className="absolute inset-0 bg-black/20"></div> */}
       </div>
 
-      {/* Content Section */}
-      <div className="max-w-6xl absolute bottom-[5%] md:bottom-auto px-4 py-12 md:p-20 z-10 flex flex-col">
-
-        {/* Header Section */}
-        <div className="mb-12 p-2 md:p-4 flex flex-col items-start justify-start z-10">
-          <div className="gap-3 mb-3 md:mb-6">
-            <h1 className="text-[clamp(2rem,3vw,4rem)] font-bold text-white tracking-tight drop-shadow-[0_0_12px_rgba(255,255,255,0.25)]">
-              10-Day{' '}
-              <span
-                className="text-[#FFD6EC]"
-                style={{
-                  textShadow:
-                    '0 0 8px rgba(255, 214, 236, 0.5), 0 0 16px rgba(255, 180, 220, 0.4)',
-                }}
-              >
-                Outfit Calendar
-              </span>
-            </h1>
+      <div className="max-w-6xl  absolute bottom-[5%] md:bottom-auto  px-4 py-12 md:p-20 z-10 flex flex-col">
+        {/* Header */}
+        <div className="mb-12 p-2 md:p-4   flex flex-col  items-start justify-start z-10 md:flex-auto">
+          <div className=" gap-3 mb-3 md:mb-6">
+            {/* <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full">
+              <Calendar className="w-8 h-8 text-white" />
+            </div> */}
+            <h1 className="text-[clamp(2rem,3vw,4rem)] font-bold text-white z-10">10-Day <span  className="text-pink-200"
+  // style={{
+  //   textShadow: '0 0 10px rgba(211, 183, 238, 0.5), 0 0 20px rgba(168, 85, 247, 0.6)',
+  // }}
+> Outfit Calendar</span></h1>
           </div>
-
-          <p
-            className="text-xl max-w-xl leading-tight font-light"
-            style={{
-              color: '#ECE9FF',
-              textShadow: '0 0 8px rgba(255,255,255,0.2)',
-            }}
-          >
+          <p className="text-xl text-white/80  leading-tight font-light max-w-xl">
             Upload your wardrobe and get AI-powered personalized styling plan for the next 10 days
           </p>
         </div>
 
-        {/* Info Section */}
-        <div className="rounded-2xl max-w-2xl p-8 w-full md:w-auto flex-shrink-0 bg-white/5 md:backdrop-blur-md border border-white/10">
+        {/* Main Content Card - Bottom aligned on mobile */}
+        <div className="rounded-2xl  max-w-2xl  p-8    w-full md:w-auto flex-shrink-0">
           <div className="flex items-center md:gap-4 md:mb-6">
-            <div className="hidden md:block">
-              <h2
-                className="text-2xl font-semibold"
-                style={{
-                  color: '#F8F8FF',
-                  textShadow: '0 0 8px rgba(255,255,255,0.25)',
-                }}
-              >
-                Generate Your Calendar
-              </h2>
-              <p
-                style={{
-                  color: '#D8D4E9',
-                }}
-              >
-                AI-powered 10-day styling plan
-              </p>
+    
+            <div className='hidden md:block'>
+              <h2 className="text-2xl font-bold text-white">Generate Your Calendar</h2>
+              <p className="text-gray-400">AI-powered 10-day styling plan</p>
             </div>
           </div>
 
+          {/* Info List - Desktop Only */}
           <div className="hidden md:block space-y-4 mb-6">
-            {[
-              'Upload 5 topwears and 5 bottomwears',
-              'AI analyzes your wardrobe',
-              'Get 10 unique outfit combinations',
-              'Daily styling tips & accessories',
-              'Weather-aware suggestions',
-            ].map((item, idx) => (
-              <div key={idx} className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-[#FFD6EC] rounded-full"></div>
-                <span
-                  style={{
-                    color: '#E5E2F9',
-                    textShadow: '0 0 6px rgba(240,240,255,0.15)',
-                  }}
-                >
-                  {item}
-                </span>
-              </div>
-            ))}
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 bg-rose-200 rounded-full"></div>
+              <span className="text-gray-300">Upload 5 topwears and 5 bottomwears</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 bg-rose-200 rounded-full"></div>
+              <span className="text-gray-300">AI analyzes your wardrobe </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 bg-rose-200 rounded-full"></div>
+              <span className="text-gray-300">Get 10 unique outfit combinations</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 bg-rose-200 rounded-full"></div>
+              <span className="text-gray-300">Daily styling tips & accessories</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 bg-rose-200 rounded-full"></div>
+              <span className="text-gray-300">Weather-aware suggestions</span>
+            </div>
           </div>
 
-          {/* Pricing Section */}
-          <div className="rounded-lg p-4 mb-6 bg-white/5 border border-white/10">
+          {/* Info Icon - Mobile Only */}
+          
+
+          <div className=" rounded-lg p-4 mb-6">
             <div className="flex items-center gap-2 mb-2">
               <Coins className="w-4 h-4 text-yellow-400" />
-              <span
-                className="font-semibold"
-                style={{ color: '#FFF8FB', textShadow: '0 0 6px rgba(255,255,255,0.2)' }}
-              >
-                Pricing
-              </span>
+              <span className="font-semibold text-white">Pricing</span>
             </div>
-            <p style={{ color: '#DAD6EE' }}>500 coins to unlock</p>
+            <p className="text-gray-300 text-sm">500 coins to unlock</p>
           </div>
 
-          {/* Generate Button */}
           <button
-            onClick={handleGenerateCalendar}
-            disabled={!canGenerateCalendar || pointsLoading}
-            className={`w-full py-4 px-6 rounded-xl font-semibold text-white backdrop-blur-md transition-all duration-300 ${
-              canGenerateCalendar && !pointsLoading
-                ? 'bg-gradient-to-r from-rose-300/70 to-pink-400/70 shadow-[0_0_25px_rgba(244,114,182,0.4)] hover:shadow-[0_0_40px_rgba(244,114,182,0.7)] hover:from-rose-200 hover:to-pink-300'
-                : 'bg-white/10 text-gray-300 cursor-not-allowed shadow-[0_0_10px_rgba(255,255,255,0.15)]'
-            }`}
-            style={{
-              textShadow: '0 0 10px rgba(255,255,255,0.25)',
-            }}
-          >
-            {pointsLoading
-              ? 'Loading...'
-              : canGenerateCalendar
-              ? 'Generate Calendar'
-              : `Need ${500 - userPoints} more coins`}
-          </button>
+  onClick={handleGenerateCalendar}
+  disabled={!canGenerateCalendar || pointsLoading}
+  className={`w-full py-4 px-6 rounded-xl font-semibold text-white backdrop-blur-md transition-all duration-300
+  ${canGenerateCalendar && !pointsLoading
+    ? 'bg-gradient-to-r from-rose-300/70 to-pink-400/70 shadow-[0_0_25px_rgba(244,114,182,0.4)] hover:shadow-[0_0_40px_rgba(244,114,182,0.7)] hover:from-rose-200 hover:to-pink-300'
+    : 'bg-white/10 text-gray-300 cursor-not-allowed shadow-[0_0_10px_rgba(255,255,255,0.15)]'
+  }`}
+>
+  {pointsLoading
+    ? 'Loading...'
+    : canGenerateCalendar
+      ? 'Generate Calendar'
+      : `Need ${500 - userPoints} more coins`}
+</button>
+
+
         </div>
 
         {/* Info Modal */}
         {showInfoModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div
-              className="absolute inset-0 bg-black/60"
-              onClick={() => setShowInfoModal(false)}
-            ></div>
+            <div className="absolute inset-0 bg-black/60" onClick={() => setShowInfoModal(false)}></div>
             <div className="relative bg-[#251F1E] rounded-2xl p-6 max-w-sm w-full border border-purple-500/20">
               <button
                 onClick={() => setShowInfoModal(false)}
                 className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors"
               >
-                <svg
-                  className="w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
 
-              <h3
-                className="text-xl font-bold mb-4"
-                style={{ color: '#F8F8FF', textShadow: '0 0 8px rgba(255,255,255,0.25)' }}
-              >
-                Features
-              </h3>
+              <h3 className="text-xl font-bold text-white mb-4">Features</h3>
 
               <div className="space-y-3">
-                {[
-                  'Upload 5 topwears and 5 bottomwears',
-                  'AI analyzes your wardrobe using Gemini',
-                  'Get 10 unique outfit combinations',
-                  'Daily styling tips & accessories',
-                  'Weather-aware suggestions',
-                ].map((feature, idx) => (
-                  <div key={idx} className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-                    <span
-                      className="text-sm"
-                      style={{ color: '#E5E2F9', textShadow: '0 0 4px rgba(200,180,255,0.15)' }}
-                    >
-                      {feature}
-                    </span>
-                  </div>
-                ))}
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
+                  <span className="text-gray-300 text-sm">Upload 5 topwears and 5 bottomwears</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
+                  <span className="text-gray-300 text-sm">AI analyzes your wardrobe using Gemini</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
+                  <span className="text-gray-300 text-sm">Get 10 unique outfit combinations</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
+                  <span className="text-gray-300 text-sm">Daily styling tips & accessories</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
+                  <span className="text-gray-300 text-sm">Weather-aware suggestions</span>
+                </div>
               </div>
             </div>
           </div>
         )}
+
       </div>
+      {/* <BottomNav /> */}
     </div>
   );
 }
