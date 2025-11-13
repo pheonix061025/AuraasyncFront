@@ -35,7 +35,7 @@ export default function OutfitPairingPage() {
   const [isCalendarFlow, setIsCalendarFlow] = useState(false);
 
   // Use secure points hook instead of localStorage
-  const { points: userPoints, isLoading: pointsLoading, refreshPoints } = useSecurePoints();
+  const { points: userPoints, isLoading: pointsLoading, refreshPoints, deductPoints } = useSecurePoints();
 
   // Check if user has used free pairing (stored in localStorage for this specific feature)
   const [hasUsedFreePairing, setHasUsedFreePairing] = useState(false);
@@ -233,14 +233,25 @@ export default function OutfitPairingPage() {
             <button
               onClick={async () => {
                 if (!canGenerateCalendar || pointsLoading) return;
-                // Use secure points deduction
-                setIsCalendarFlow(true);
+                
                 try {
-                  // This would use the secure points hook in a real implementation
+                  // Deduct points using secure points hook
+                  const success = await deductPoints(500, 'Generated 10-day outfit calendar');
+                  
+                  if (!success) {
+                    alert('Failed to deduct points. Please try again.');
+                    return;
+                  }
+
+                  // Refresh points to update the display
                   await refreshPoints();
+                  
+                  // Set calendar flow flag and navigate to upload
+                  setIsCalendarFlow(true);
                   setCurrentView('upload');
                 } catch (error) {
-                  console.error('Failed to process calendar purchase');
+                  console.error('Failed to process calendar purchase:', error);
+                  alert('Failed to process calendar purchase. Please try again.');
                 }
               }}
               disabled={!canGenerateCalendar || pointsLoading}
