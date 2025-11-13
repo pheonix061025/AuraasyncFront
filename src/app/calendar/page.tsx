@@ -23,7 +23,7 @@ export default function CalendarPage() {
   const [showInfoModal, setShowInfoModal] = useState(false);
 
   // Use secure points hook instead of localStorage
-  const { points: userPoints, isLoading: pointsLoading, refreshPoints } = useSecurePoints();
+  const { points: userPoints, isLoading: pointsLoading, refreshPoints, deductPoints } = useSecurePoints();
 
   useEffect(() => {
     // Only load non-sensitive data from localStorage
@@ -51,13 +51,24 @@ export default function CalendarPage() {
       return;
     }
 
-    setIsCalendarFlow(true);
     try {
-      // Use secure points deduction (would be implemented in the secure points hook)
+      // Deduct points using secure points hook
+      const success = await deductPoints(500, 'Generated 10-day outfit calendar');
+      
+      if (!success) {
+        alert('Failed to deduct points. Please try again.');
+        return;
+      }
+
+      // Refresh points to update the display
       await refreshPoints();
+      
+      // Set calendar flow flag and navigate to upload
+      setIsCalendarFlow(true);
       setCurrentView('upload');
     } catch (error) {
       console.error('Failed to process calendar purchase:', error);
+      alert('Failed to process calendar purchase. Please try again.');
     }
   };
 
