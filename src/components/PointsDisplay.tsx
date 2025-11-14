@@ -390,7 +390,7 @@ export default function PointsDisplay({
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-blue-400 flex items-center gap-2">
                   <TrendingUp className="w-6 h-6" />
-                  Transaction History
+                   History
                 </h2>
                 <button
                   onClick={() => setShowTransactionHistory(false)}
