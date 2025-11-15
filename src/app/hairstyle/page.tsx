@@ -14,9 +14,15 @@ export default function HairstylePage() {
     const data = getUserData();
     setUserData(data);
     setLoading(false);
-    // Require completed face analysis to access hairstyle recommendations
-    if (!data?.face_shape) {
-      alert('Please complete face analysis first to access hairstyle recommendations');
+    // Require completed face analysis and gender to access hairstyle recommendations
+    if (!data?.face_shape || !data?.gender) {
+      if (!data?.face_shape && !data?.gender) {
+        alert('Please complete onboarding (including face analysis and gender selection) to access hairstyle recommendations');
+      } else if (!data?.face_shape) {
+        alert('Please complete face analysis first to access hairstyle recommendations');
+      } else if (!data?.gender) {
+        alert('Please complete gender selection first to access hairstyle recommendations');
+      }
       router.push('/onboarding');
       return;
     }
@@ -30,12 +36,16 @@ export default function HairstylePage() {
     );
   }
 
-  if (!userData?.face_shape) {
+  if (!userData?.face_shape || !userData?.gender) {
+    const missingItems: string[] = [];
+    if (!userData?.face_shape) missingItems.push('face analysis');
+    if (!userData?.gender) missingItems.push('gender selection');
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <div className="text-center text-white">
-          <h1 className="text-2xl font-bold mb-4">Face Analysis Required</h1>
-          <p className="mb-6">Please complete face analysis to access hairstyle recommendations</p>
+          <h1 className="text-2xl font-bold mb-4">Onboarding Required</h1>
+          <p className="mb-6">Please complete {missingItems.join(' and ')} to access hairstyle recommendations</p>
           <button 
             onClick={() => router.push('/onboarding')}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
