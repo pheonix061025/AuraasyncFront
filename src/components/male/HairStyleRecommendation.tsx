@@ -1,6 +1,7 @@
 "use client";
 import React, { useMemo, useState } from "react";
 import Image from "next/image";
+import { getUserData } from "@/lib/userState";
 
 // --------------------------------------
 // Plug‑and‑Play Hairstyle Recommender
@@ -719,16 +720,18 @@ function classNames(...arr: (string | false | null | undefined)[]) {
 // Get user data from localStorage (from onboarding)
 function getUserDataFromStorage(): { gender: Gender; faceShape: FaceShape } | null {
   try {
-    const userData = JSON.parse(localStorage.getItem('auraasync_user_data') || '{}');
+    const userData = getUserData();
     
-    if (!userData.gender || !userData.face_shape) {
+    if (!userData || !userData.gender || !userData.face_shape) {
       return null;
     }
 
     // Map your gender format to the component's format
     const genderMap: Record<string, Gender> = {
       'male': 'Men',
-      'female': 'Women'
+      'female': 'Women',
+      'Men': 'Men', // Handle case where it's already in the correct format
+      'Women': 'Women'
     };
 
     // Map your face shape format to the component's format
@@ -738,18 +741,26 @@ function getUserDataFromStorage(): { gender: Gender; faceShape: FaceShape } | nu
       'Square': 'Square',
       'Heart': 'Heart',
       'Diamond': 'Diamond',
+      'Oblong': 'Oblong',
       'Rectangle': 'Oblong' // Map Rectangle to Oblong
     };
 
-    const gender = genderMap[userData.gender];
-    const faceShape = faceShapeMap[userData.face_shape];
+    // Normalize gender (case-insensitive)
+    const normalizedGender = userData.gender.toLowerCase();
+    const gender = genderMap[normalizedGender] || genderMap[userData.gender];
+    
+    // Normalize face shape (capitalize first letter)
+    const normalizedFaceShape = userData.face_shape.charAt(0).toUpperCase() + userData.face_shape.slice(1).toLowerCase();
+    const faceShape = faceShapeMap[userData.face_shape] || faceShapeMap[normalizedFaceShape];
 
     if (!gender || !faceShape) {
+      console.warn('Could not map user data:', { gender: userData.gender, face_shape: userData.face_shape });
       return null;
     }
 
     return { gender, faceShape };
-  } catch {
+  } catch (error) {
+    console.error('Error getting user data from storage:', error);
     return null;
   }
 }
@@ -759,15 +770,26 @@ export default function HairstyleRecommender() {
   const [gender, setGender] = useState<Gender | null>(null);
   const [faceShape, setFaceShape] = useState<FaceShape | null>(null);
   const [query, setQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   // Auto‑hydrate from user data (from onboarding)
   React.useEffect(() => {
-    const userData = getUserDataFromStorage();
-    if (userData) {
-      setGender(userData.gender);
-      setFaceShape(userData.faceShape);
-      setStep(3);
-    }
+    const loadUserData = () => {
+      setIsLoading(true);
+      const userData = getUserDataFromStorage();
+      if (userData && userData.gender && userData.faceShape) {
+        setGender(userData.gender);
+        setFaceShape(userData.faceShape);
+        setStep(3);
+      } else {
+        // If no user data found, start with step 1
+        setStep(1);
+      }
+      setIsLoading(false);
+    };
+
+    // Try immediately
+    loadUserData();
   }, []);
 
   const results = useMemo(() => {
@@ -786,12 +808,27 @@ export default function HairstyleRecommender() {
     return filtered;
   }, [gender, faceShape, query]);
 
+  // Show loading state while checking user data
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-white text-lg">Loading your personalized recommendations...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight text-white">Auraasync • Hairstyle Recommendations</h1>
-        <div className="text-sm opacity-70 text-white">Personalized for your face shape</div>
+        <div className="text-sm opacity-70 text-white">
+          {gender && faceShape 
+            ? `Personalized for ${gender === 'Men' ? 'Men' : 'Women'} with ${faceShape} face shape`
+            : 'Personalized for your face shape'}
+        </div>
       </div>
 
       {/* Stepper (hidden when auto-detected) */}
