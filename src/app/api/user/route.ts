@@ -132,13 +132,13 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString()
       };
       
-      // Only add fields if they have actual values (not undefined or empty string)
-      if (gender !== undefined && gender !== null) updateData.gender = gender;
-      if (location !== undefined && location !== null) updateData.location = location;
-      if (skin_tone !== undefined && skin_tone !== null) updateData.skin_tone = skin_tone;
-      if (face_shape !== undefined) updateData.face_shape = face_shape;
-      if (body_shape !== undefined) updateData.body_shape = body_shape;
-      if (personality !== undefined) updateData.personality = personality;
+      // Only add fields if they have actual values (not undefined, null, or empty string)
+      if (gender && gender.trim() !== '') updateData.gender = gender;
+      if (location && location.trim() !== '') updateData.location = location;
+      if (skin_tone && skin_tone.trim() !== '') updateData.skin_tone = skin_tone;
+      if (face_shape !== undefined && face_shape !== null) updateData.face_shape = face_shape;
+      if (body_shape !== undefined && body_shape !== null) updateData.body_shape = body_shape;
+      if (personality !== undefined && personality !== null) updateData.personality = personality;
       
       // Only update onboarding_completed if it's being set to true
       // This prevents intermediate updates from setting it back to false

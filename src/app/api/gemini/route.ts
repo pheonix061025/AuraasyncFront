@@ -8,36 +8,48 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 function extractBase64AndMime(input: { base64?: string; dataUrl?: string; mimeType?: string }) {
 	let mimeType = input.mimeType || "image/jpeg";
 	let base64 = input.base64 || "";
+
+	// If dataUrl was given
 	if (!base64 && input.dataUrl) {
-		// data URL format: data:<mime>;base64,<data>
 		const match = input.dataUrl.match(/^data:(.*?);base64,(.*)$/);
 		if (match) {
 			mimeType = input.mimeType || match[1] || mimeType;
 			base64 = match[2] || base64;
 		}
 	}
+
+	// --- FIX: Clean base64 BEFORE validation ---
+	base64 = base64
+		.replace(/^data:.*;base64,/, "") // remove prefix
+		.replace(/\s+/g, "")            // remove all whitespace
+		.replace(/ /g, "+")             // replace spaces -> +
+		.trim();
+
 	return { base64, mimeType };
 }
 
+
 // Validate image data
 function validateImage(base64: string, mimeType: string): { valid: boolean; error?: string } {
-	// Check file size (max 10MB)
+	// CLEAN AGAIN JUST TO BE SAFE
+	base64 = base64.replace(/\s+/g, "").replace(/ /g, "+").trim();
+
+	// size check
 	const sizeInBytes = (base64.length * 3) / 4;
 	if (sizeInBytes > 10 * 1024 * 1024) {
 		return { valid: false, error: "Image too large. Maximum 10MB allowed." };
 	}
-	
-	// Check MIME type
-	const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-	if (!allowedTypes.includes(mimeType.toLowerCase())) {
-		return { valid: false, error: "Invalid image type. Only JPEG, PNG, and WebP allowed." };
+
+	const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+	if (!allowed.includes(mimeType.toLowerCase())) {
+		return { valid: false, error: "Invalid image type. Only JPEG, PNG, WebP allowed." };
 	}
-	
-	// Basic base64 validation
-	if (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) {
+
+	// validation REGEX must match *CLEANED* data
+	if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) {
 		return { valid: false, error: "Invalid base64 data." };
 	}
-	
+
 	return { valid: true };
 }
 

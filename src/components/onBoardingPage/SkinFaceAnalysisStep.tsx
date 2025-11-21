@@ -2,13 +2,13 @@
 
 import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import Webcam from "react-webcam";
 import Image from "next/image";
 import FacePhoto from "@/app/assets/onboarding/face.png";
 import MobileFacePhoto from "@/app/assets/onboarding/faceMobile.png";
 import mobilecam from '@/app/assets/MobileCamera.png';
 import { awardAnalysisPoints, savePointsToSupabase } from "../../lib/pointsSystem";
 import { updateUserData } from "../../lib/userState";
+import CustomWebcam from "../CustomWebcam";
 
 interface SkinFaceAnalysisStepProps {
   userData: any;
@@ -56,9 +56,7 @@ const SkinFaceAnalysisStep = ({
   const [faceLocked, setFaceLocked] = useState(false);
   const [showFaceInstructions, setShowFaceInstructions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const webcamRef = useRef<Webcam>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [showCustomWebcam, setShowCustomWebcam] = useState(false);
 
   // Mobile-only preloader before starting camera capture
   const [isMobilePreloading, setIsMobilePreloading] = useState(false);
@@ -115,6 +113,7 @@ const SkinFaceAnalysisStep = ({
       setShowUpload(true);
       setShowCamera(false);
       setIsAutoCapturing(false);
+      setShowCustomWebcam(false);
       // Trigger file input
       if (fileInputRef.current) {
         fileInputRef.current.click();
@@ -123,9 +122,7 @@ const SkinFaceAnalysisStep = ({
       setShowCamera(true);
       setIsAutoCapturing(true);
       setShowUpload(false);
-      
-      // Start automatic capture process
-      startAutoCapture();
+      setShowCustomWebcam(true);
     }
   };
 
@@ -142,66 +139,30 @@ const SkinFaceAnalysisStep = ({
     startAnalysis(targetType as "skin_tone" | "face_shape", "camera");
   };
 
-  const startAutoCapture = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-
-      // Start automatic capture sequence
-      for (let i = 0; i < 3; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 2 seconds
-
-        await captureImage();
-        setProgress((i + 1) * 25);
-      }
-
-      // Stop camera after capturing
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-        videoRef.current.srcObject = null;
-      }
-      setShowCamera(false);
-      setIsAutoCapturing(false);
-    } catch (err) {
-      console.error("Camera access error:", err);
-      setShowCamera(false);
-      setIsAutoCapturing(false);
-      // Fallback to manual input
-      handleManualInput(currentAnalysis!);
-    }
+  const handleWebcamCapture = async (blob: Blob, imageUrl: string) => {
+    setCapturedImages((prev) => [...prev, imageUrl]);
+    await analyzeImage(blob);
+    const currentCount = capturedImages.length + 1;
+    setProgress((currentCount / 3) * 100);
   };
 
-  const captureImage = async () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(async (blob) => {
-          if (blob) {
-            const imageUrl = URL.createObjectURL(blob);
-            setCapturedImages((prev) => [...prev, imageUrl]);
-
-            // Analyze the captured image
-            await analyzeImage(blob);
-          }
-        }, "image/jpeg");
-      }
-    }
+  const handleAllCapturesComplete = () => {
+    setShowCamera(false);
+    setIsAutoCapturing(false);
+    setShowCustomWebcam(false);
   };
 
   const analyzeImage = async (blob: Blob) => {
     setIsAnalyzing(true);
     try {
+      // Validate blob has data
+      if (!blob || blob.size === 0) {
+        throw new Error('Invalid or empty image blob');
+      }
+      
+      // Ensure blob has correct MIME type
+      const imageBlob = blob.type === 'image/jpeg' ? blob : new Blob([blob], { type: 'image/jpeg' });
+      
       // Retry wrapper to handle transient 5xx/429 failures from the API route
       const fetchWithRetry = async (
         url: string,
@@ -231,21 +192,40 @@ const SkinFaceAnalysisStep = ({
           const reader = new FileReader();
           reader.onloadend = () => {
             const res = (reader.result as string) || "";
-            const base64 = res.split(",")[1] || res;
+            
+            // Validate we have data
+            if (!res) {
+              reject(new Error("FileReader returned empty result"));
+              return;
+            }
+            
+            // Ensure we properly extract base64 data after the comma
+            const parts = res.split(",");
+            const base64 = parts.length > 1 ? parts[1] : res;
+            
+            // Validate base64 is not empty and has reasonable length
+            if (!base64 || base64.length < 100) {
+              reject(new Error(`Invalid base64 data: length=${base64.length}`));
+              return;
+            }
+            
             resolve(base64);
           };
-          reader.onerror = reject;
+          reader.onerror = (error) => {
+            console.error('FileReader error:', error);
+            reject(new Error('Failed to read blob as base64'));
+          };
           reader.readAsDataURL(b);
         });
 
-      const base64 = await blobToBase64(blob);
+      const base64 = await blobToBase64(imageBlob);
 
       const resp = await fetchWithRetry("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "face_skin",
-          images: [{ base64, mimeType: blob.type || "image/jpeg" }],
+          images: [{ base64, mimeType: imageBlob.type }],
         }),
       });
 
@@ -441,6 +421,7 @@ const SkinFaceAnalysisStep = ({
       {/* Uploaded Image Preview */}
       {uploadedImage && (
         <div className="mb-6 flex flex-col items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={uploadedImage}
             alt="Uploaded image"
@@ -701,7 +682,7 @@ const SkinFaceAnalysisStep = ({
       </div>
 
       <p className="text-sm text-gray-300 mb-4">
-        Progress: {progress}% - {capturedImages.length} images captured
+        Progress: {progress}% - {capturedImages.length} image captured
       </p>
 
       {isAutoCapturing && (
@@ -710,7 +691,7 @@ const SkinFaceAnalysisStep = ({
             Auto-capturing in progress...
           </div>
           <p className="text-sm text-gray-300">
-            Please stay still while we capture 3 images
+            Please stay still while we capture your image
           </p>
         </div>
       )}
@@ -722,16 +703,18 @@ const SkinFaceAnalysisStep = ({
         </div>
       )}
 
-      {/* Camera Feed */}
-      {showCamera && (
-        <div className="mb-6 flex flex-col items-center">
-          <video
-            ref={videoRef}
-            className="w-full h-[70vh] md:max-w-md md:h-auto rounded-lg border-2 border-gray-700 mb-2 shadow-lg object-cover"
-            autoPlay
-            playsInline
+      {/* Custom Webcam Component */}
+      {showCustomWebcam && (
+        <div className="mb-6">
+          <CustomWebcam
+            onCapture={handleWebcamCapture}
+            autoCapture={true}
+            countdownSeconds={5}
+            captureCount={1}
+            captureInterval={2000}
+            onAllCapturesComplete={handleAllCapturesComplete}
+            className="w-full"
           />
-          <canvas ref={canvasRef} style={{ display: "none" }} />
         </div>
       )}
 
@@ -744,6 +727,7 @@ const SkinFaceAnalysisStep = ({
                 key={index}
                 className="bg-white/20 rounded p-2 text-center text-sm"
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={img}
                   alt={`Image ${index + 1}`}

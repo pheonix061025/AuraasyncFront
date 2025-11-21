@@ -177,12 +177,16 @@ function OnboardingContent() {
           
           if (response.ok) {
             const userData = await response.json();
-            console.log('User data from API:', userData)
+            console.log('User data from API:', userData);
+            console.log('Onboarding completed:', userData.onboarding_completed);
+            console.log('User gender:', userData.gender);
             
             // If user has completed onboarding, redirect to appropriate gender page
-            if (userData.onboarding_completed && userData.gender){
+            if (userData.onboarding_completed && userData.gender) {
               console.log('Redirecting to gender page:', userData.gender);
-              router.replace(userData.gender === 'male' ? '/male' : '/female');
+              const redirectPath = userData.gender === 'male' ? '/male' : '/female';
+              console.log('Redirect path:', redirectPath);
+              router.replace(redirectPath);
               return;
             }
             
@@ -286,7 +290,7 @@ function OnboardingContent() {
         body: JSON.stringify({
           email: dataToSave.email,
           name: dataToSave.name,
-          gender: dataToSave.gender,
+          gender: dataToSave.gender || undefined, // Send undefined instead of empty string
           location: dataToSave.location || 'Mumbai',
           skin_tone: dataToSave.skin_tone || null,
           face_shape: dataToSave.face_shape || null,
@@ -335,7 +339,7 @@ function OnboardingContent() {
         body: JSON.stringify({
           email: updatedData.email,
           name: updatedData.name,
-          gender: updatedData.gender,
+          gender: updatedData.gender || undefined, // Send undefined instead of empty string
           location: updatedData.location || 'Mumbai',
           skin_tone: updatedData.skin_tone || null,
           face_shape: updatedData.face_shape || null,
@@ -1240,6 +1244,13 @@ try {
         console.log('🎯 handleComplete called');
         console.log('📊 userData:', userData);
         
+        // Validate that gender is set
+        if (!userData.gender) {
+          alert('Please select your gender in the Basic Info step before completing onboarding.');
+          setCurrentStep(STEPS.BASIC_INFO);
+          return;
+        }
+        
         // Award points for completing full onboarding
         const onboardingResult = awardOnboardingPoints(userData);
         const completedUserData = { ...onboardingResult.userData, onboarding_completed: true };
@@ -1323,16 +1334,9 @@ try {
         }
       } catch (error) {
         console.error('❌ ERROR in handleComplete:', error);
-        alert('An error occurred. Redirecting anyway...');
-        // Still redirect even if API fails
-        const redirectPath = userData?.gender === "male" ? "/male" : "/female";
-        console.log('🚀 Redirecting anyway to:', redirectPath);
-        if (redirectPath && userData?.gender) {
-          router.push(redirectPath);
-        } else {
-          console.error('❌ No gender set, cannot redirect');
-          alert('Please complete all steps including gender selection.');
-        }
+        alert('An error occurred. Please try again.');
+        // Don't redirect on error - let user fix the issue
+        return;
       }
 
     };

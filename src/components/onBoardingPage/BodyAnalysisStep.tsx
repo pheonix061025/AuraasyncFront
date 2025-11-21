@@ -2,7 +2,6 @@
 
 import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import Webcam from "react-webcam";
 import Image from "next/image";
 import BodyPhoto from "@/app/assets/onboarding/body.png";
 import MobileBodyPhoto from "@/app/assets/onboarding/bodyMobile.png";
@@ -10,6 +9,7 @@ import mobilecam from '@/app/assets/MobileCamera.png';
 import { awardAnalysisPoints, savePointsToSupabase } from "../../lib/pointsSystem";
 import { updateUserData } from "../../lib/userState";
 import { guessFemaleType, guessMaleType, inchesToCm, cmToInches } from "../../lib/bodyTypes";
+import CustomWebcam from "../CustomWebcam";
 
 // Body Type Images
 import HourglassImage from "@/app/assets/Bodytype/hourglass.png";
@@ -78,9 +78,7 @@ const BodyAnalysisStep = ({
   const [showBodyInstructions, setShowBodyInstructions] = useState(false);
   const [isMobilePreloadingBody, setIsMobilePreloadingBody] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const webcamRef = useRef<Webcam>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [showCustomWebcam, setShowCustomWebcam] = useState(false);
 
   const handleNext = async () => {
     const updatedData = { ...userData, body_shape: analysisData.body_shape };
@@ -131,6 +129,7 @@ const BodyAnalysisStep = ({
       setShowUpload(true);
       setShowCamera(false);
       setIsAutoCapturing(false);
+      setShowCustomWebcam(false);
       // Trigger file input
       if (fileInputRef.current) {
         fileInputRef.current.click();
@@ -139,9 +138,7 @@ const BodyAnalysisStep = ({
       setShowCamera(true);
       setIsAutoCapturing(true);
       setShowUpload(false);
-      
-      // Start automatic capture process
-      startAutoCapture();
+      setShowCustomWebcam(true);
     }
   };
 
@@ -154,118 +151,62 @@ const BodyAnalysisStep = ({
     startAnalysis("body_shape", "camera");
   };
 
-  const startAutoCapture = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-
-      // Start automatic capture sequence
-      for (let i = 0; i < 3; i++) {
-        // small delay between captures (2s)
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-
-        if (!videoRef.current || !canvasRef.current) break;
-
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 480;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) continue;
-
-        // draw current video frame to canvas (this will be used as preview)
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // create a data URL preview immediately so UI can show the captured frame
-        try {
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-          setCapturedImages((prev) => [...prev, dataUrl]);
-
-          // update progress based on number of captures
-          setProgress(Math.min(100, Math.round(((i + 1) / 3) * 100)));
-        } catch (err) {
-          console.warn("Failed to create preview dataURL", err);
-        }
-
-        // convert canvas to blob and analyze (await so we preserve order)
-        await new Promise<void>((resolveBlob) => {
-          canvas.toBlob(
-            async (blob) => {
-              if (blob) {
-                try {
-                  await analyzeImage(blob);
-                } catch (e) {
-                  console.error("analyzeImage error:", e);
-                }
-              }
-              resolveBlob();
-            },
-            "image/jpeg",
-            0.9
-          );
-        });
-      }
-
-      // Stop camera after capturing
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-        videoRef.current.srcObject = null;
-      }
-      setShowCamera(false);
-      setIsAutoCapturing(false);
-    } catch (err) {
-      console.error("Camera access error:", err);
-      setShowCamera(false);
-      setIsAutoCapturing(false);
-      // Fallback to manual input
-      handleManualInput("body_shape");
-    }
+  const handleWebcamCapture = async (blob: Blob, imageUrl: string) => {
+    setCapturedImages((prev) => [...prev, imageUrl]);
+    await analyzeImage(blob);
+    const currentCount = capturedImages.length + 1;
+    setProgress((currentCount / 1) * 100);
   };
 
-  const captureImage = async () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(async (blob) => {
-          if (blob) {
-            const imageUrl = URL.createObjectURL(blob);
-            setCapturedImages((prev) => [...prev, imageUrl]);
-
-            // Analyze the captured image
-            await analyzeImage(blob);
-          }
-        }, "image/jpeg");
-      }
-    }
+  const handleAllCapturesComplete = () => {
+    setShowCamera(false);
+    setIsAutoCapturing(false);
+    setShowCustomWebcam(false);
   };
 
   const analyzeImage = async (blob: Blob) => {
     setIsAnalyzing(true);
     try {
+      // Validate blob has data
+      if (!blob || blob.size === 0) {
+        throw new Error('Invalid or empty image blob');
+      }
+      
+      // Ensure blob has correct MIME type
+      const imageBlob = blob.type === 'image/jpeg' ? blob : new Blob([blob], { type: 'image/jpeg' });
+      
       const blobToBase64 = (b: Blob) =>
         new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onloadend = () => {
             const res = (reader.result as string) || "";
-            const base64 = res.split(",")[1] || res;
+            
+            // Validate we have data
+            if (!res) {
+              reject(new Error("FileReader returned empty result"));
+              return;
+            }
+            
+            // Ensure we properly extract base64 data after the comma
+            const parts = res.split(",");
+            const base64 = parts.length > 1 ? parts[1] : res;
+            
+            // Validate base64 is not empty and has reasonable length
+            if (!base64 || base64.length < 100) {
+              reject(new Error(`Invalid base64 data: length=${base64.length}`));
+              return;
+            }
+            
             resolve(base64);
           };
-          reader.onerror = reject;
+          reader.onerror = (error) => {
+            console.error('FileReader error:', error);
+            reject(new Error('Failed to read blob as base64'));
+          };
           reader.readAsDataURL(b);
         });
 
-      const base64 = await blobToBase64(blob);
+      const base64 = await blobToBase64(imageBlob);
 
       const resp = await fetch("/api/gemini", {
         method: "POST",
@@ -273,7 +214,7 @@ const BodyAnalysisStep = ({
         body: JSON.stringify({
           mode: "body_shape",
           gender: userData.gender,
-          images: [{ base64, mimeType: blob.type || "image/jpeg" }],
+          images: [{ base64, mimeType: imageBlob.type }],
         }),
       });
 
@@ -304,26 +245,9 @@ const BodyAnalysisStep = ({
         body_shape: result,
       }));
 
-      setAnalysisResults((prev) => [...prev, result]);
-
-      if (analysisResults.length + 1 >= 3) {
-        const finalResults = [...analysisResults, result];
-        const mostCommon = finalResults.reduce((acc, val) => {
-          acc[val] = (acc[val] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
-
-        const finalResult = Object.entries(mostCommon).reduce((a, b) =>
-          mostCommon[a[0]] > mostCommon[b[0]] ? a : b
-        )[0];
-
-        setAnalysisData((prev) => ({
-          ...prev,
-          [currentAnalysis!]: finalResult,
-        }));
-        setCurrentAnalysis(null);
-        setProgress(100);
-      }
+      setAnalysisResults([result]);
+      setCurrentAnalysis(null);
+      setProgress(100);
     } catch (error: any) {
       console.error("Analysis error (body):", error);
       alert(
@@ -507,6 +431,7 @@ const BodyAnalysisStep = ({
       {/* Uploaded Image Preview */}
       {uploadedImage && (
         <div className="mb-6 flex flex-col items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={uploadedImage}
             alt="Uploaded image"
@@ -861,7 +786,7 @@ const BodyAnalysisStep = ({
       </div>
 
       <p className="text-sm text-gray-300 mb-4">
-        Progress: {progress}% - {capturedImages.length}
+        Progress: {progress}% - {capturedImages.length} image captured
       </p>
 
       {isAutoCapturing && (
@@ -870,7 +795,7 @@ const BodyAnalysisStep = ({
             Auto-capturing in progress...
           </div>
           <p className="text-sm text-gray-300">
-            Please stay still while we capture 3 images
+            Please stay still while we capture your image
           </p>
         </div>
       )}
@@ -882,16 +807,18 @@ const BodyAnalysisStep = ({
         </div>
       )}
 
-      {/* Camera Feed */}
-      {showCamera && (
-        <div className="mb-6 flex flex-col items-center">
-          <video
-            ref={videoRef}
-            className="w-full h-[70vh] md:max-w-md md:h-auto rounded-lg border-2 border-gray-700 mb-2 shadow-lg object-cover"
-            autoPlay
-            playsInline
+      {/* Custom Webcam Component */}
+      {showCustomWebcam && (
+        <div className="mb-6">
+          <CustomWebcam
+            onCapture={handleWebcamCapture}
+            autoCapture={true}
+            countdownSeconds={5}
+            captureCount={1}
+            captureInterval={2000}
+            onAllCapturesComplete={handleAllCapturesComplete}
+            className="w-full"
           />
-          <canvas ref={canvasRef} style={{ display: "none" }} />
         </div>
       )}
 
@@ -904,6 +831,7 @@ const BodyAnalysisStep = ({
                 key={index}
                 className="bg-white/20 rounded p-2 text-center text-sm"
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={img}
                   alt={`Image ${index + 1}`}
