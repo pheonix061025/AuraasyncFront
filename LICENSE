@@ -1,0 +1,47 @@
+Project_name AuraasyncFront,
+Author_name Abubackar Sidhiq,
+License_text Proprietary licence,
+Effective_date 09-10-2025
+
+$$
+Copyright © 2025 Abubackar Sidhiq. All rights reserved.
+
+Proprietary Software Licence – AuraaSync Codebase
+
+1. Ownership
+The entire source code, object code, scripts, documentation, and all derivative
+works of the project known as AuraaSync (the “Software”) are and shall remain the
+sole property of Abubackar Sidhiq (“Licensor”). No assignment or transfer of
+copyright or other intellectual-property rights is made except as expressly stated
+herein.
+
+2. Grant of Licence
+The Licensor grants Lumineth Private Limited (“Licensee”) a non-exclusive,
+non-transferable, revocable, limited licence to use, run, and maintain the Software
+solely for the purpose of operating and developing the AuraaSync business.
+This licence permits internal business use and deployment on company servers
+or cloud infrastructure; allows authorised employees or interns to contribute
+under Licensor’s supervision; and does not permit resale, sublicensing,
+public distribution, or derivative commercial products.
+
+3. Term and Conditions
+The licence continues until both (a) the Licensor is appointed Director of Lumineth
+Private Limited and (b) his 25% founder equity has fully vested. Upon satisfaction of
+both, all rights transfer to the Company under a separate written assignment.
+If either event does not occur or the Company breaches the Agreement,
+this licence terminates automatically and the Company must cease all use
+or acquire full rights at Fair Market or Settlement Value.
+
+4. Good- and Bad-Leaver Outcomes
+If the Licensor becomes a Good Leaver, the Company may continue use by
+purchasing rights at Fair Market or Settlement Value. If the Licensor becomes
+a Bad Leaver (fraud, misconduct, breach of confidentiality, or competing activity),
+the Company retains internal-use-only rights for existing deployments.
+
+5. Confidentiality
+All source code and related materials are confidential. The Licensee shall
+restrict access to authorised personnel only and ensure all employees,
+contractors, and interns sign confidentiality undertakings recognising
+Abubackar Sidhiq as the IP owner.
+
+End of Licence
