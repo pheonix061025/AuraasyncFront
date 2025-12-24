@@ -2,9 +2,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Upload,CloudDownload, HelpCircle, Info, User, Maximize2, Play, GitCompare, Clock } from 'lucide-react';
+import { Upload, CloudDownload, HelpCircle, Info, User, Maximize2, Play, GitCompare, Clock, ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const VirtualTryOnPage = () => {
+  const router = useRouter();
   const [dressImage, setDressImage] = useState<string | null>(null);
   const [modelImage, setModelImage] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
@@ -84,7 +86,17 @@ const VirtualTryOnPage = () => {
 
   return (
     <div className="min-h-screen bg-[#1a1414] text-white">
-      <main className="max-w-[90vw] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Back Button */}
+      <div className="max-w-[90vw] mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-white/70 hover:text-white mb-4 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="font-medium">Back</span>
+        </button>
+      </div>
+      <main className="max-w-[90vw] mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
           {/* LEFT PANEL */}
