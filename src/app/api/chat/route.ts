@@ -14,7 +14,7 @@ function findRelevantProducts(query: string): any[] {
     const queryTokens = lowerQuery.split(" ").filter(t => t.length > 3); // Filter small words
 
     // Filter products that match keywords or title
-    const matchedProducts = productData.filter((product: any) => {
+    let matchedProducts = productData.filter((product: any) => {
         const keywordMatch = product.keyword && product.keyword.toLowerCase().includes(lowerQuery);
         const titleMatch = product.title && queryTokens.some(token => product.title.toLowerCase().includes(token));
         const typeMatch = product.type && lowerQuery.includes(product.type.toLowerCase());
@@ -22,9 +22,26 @@ function findRelevantProducts(query: string): any[] {
         return keywordMatch || titleMatch || typeMatch;
     });
 
+    // FALLBACK: If no specific products found, return some recommendations based on broad categories or random
+    if (matchedProducts.length === 0) {
+        console.log("No exact matches found for query:", lowerQuery);
+
+        // If user mentions gender-specific terms, filter by that
+        if (['women', 'girl', 'lady', 'female', 'she', 'her'].some(w => lowerQuery.includes(w))) {
+            matchedProducts = productData.filter((p: any) => p.type === 'women' || p.type?.includes('women'));
+        } else if (['men', 'boy', 'guy', 'male', 'he', 'him'].some(w => lowerQuery.includes(w))) {
+            matchedProducts = productData.filter((p: any) => p.type === 'men' || p.type?.includes('men'));
+        }
+
+        // If still empty (or no gender specified), pick a random subset of the entire catalog
+        if (matchedProducts.length === 0) {
+            matchedProducts = productData;
+        }
+    }
+
     // Strategy to pick diverse yet relevant items (limit to 6 to save tokens)
-    // We shuffle or just take top ones. Let's take top 6 for now.
-    return matchedProducts.slice(0, 6);
+    // We shuffle to give variety
+    return matchedProducts.sort(() => 0.5 - Math.random()).slice(0, 6);
 }
 
 export async function POST(req: Request) {
@@ -45,22 +62,16 @@ export async function POST(req: Request) {
         let productContext = "";
         if (relevantProducts.length > 0) {
             productContext = `
-            HERE ARE THE AVAILABLE PRODUCTS IN OUR STOCK THAT MATCH THE USER'S QUERY. 
-            YOU MUST RECOMMEND THESE SPECIFIC ITEMS IF THEY FIT THE REQUEST.
+            HERE ARE THE AVAILABLE PRODUCTS THAT THE USER WILL SEE IN A GRID:
             
             ${relevantProducts.map((p, i) => `
-            Item ${i + 1}:
-            - Title: ${p.title}
-            - Price: ${p.price}
-            - Link: ${p.link}
-            - Image: ${p.image}
+            Item ${i + 1}: ${p.title} (${p.price})
             `).join("\n")}
             
-            INSTRUCTIONS FOR PRODUCT RECOMMENDATIONS:
-            1. Use the EXACT link provided for the product.
-            2. Display the price.
-            3. You can show the image using markdown: ![Title](Image URL).
-            4. If the user asked for a specific type of clothing (e.g. "dress", "shirt") and we have it in the list above, recommend it.
+            INSTRUCTIONS:
+            - The user sees these products in a visual grid below your message.
+            - DO NOT output these products as text, links, or markdown images.
+            - Simply recommend them or comment on why they fit the user's request.
             `;
         }
 

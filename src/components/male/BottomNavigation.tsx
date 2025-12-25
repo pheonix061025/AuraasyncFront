@@ -42,7 +42,7 @@ export default function BottomNav() {
   };
 
   const isActive = (path: string) =>
-    pathname === path || pathname.startsWith(path + "/");
+    pathname === path || (pathname?.startsWith(path + "/") ?? false);
 
   const linkClass = (active: boolean) =>
     cn(
@@ -87,12 +87,7 @@ export default function BottomNav() {
           </button>
         </DockIcon>
 
-        {/* Search */}
-        <DockIcon>
-          <Link href="/search" className={linkClass(isActive("/search"))}>
-            <Search className="h-7 w-7" />
-          </Link>
-        </DockIcon>
+
 
         {/* Hairstyle */}
         <DockIcon>
