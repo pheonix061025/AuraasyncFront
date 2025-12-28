@@ -1,4 +1,5 @@
 /// <reference types="react" />
+declare module '*.css';
 /// <reference types="react-dom" />
 
 declare namespace JSX {

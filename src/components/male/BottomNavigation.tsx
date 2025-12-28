@@ -14,7 +14,7 @@ import { getUserData } from "@/lib/userState";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
-import HairIcon from "/public/icons/hairstyle.png";
+// import HairIcon from "/public/icons/hairstyle.png";
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -96,7 +96,7 @@ export default function BottomNav() {
             className={linkClass(isActive("/hairstyle"))}
           >
             <Image
-              src={HairIcon}
+              src="/icons/hairstyle.png"
               alt="Hairstyle"
               width={32}
               height={32}

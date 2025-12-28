@@ -19,8 +19,8 @@ import { useAutoReviewPopup } from "@/hooks/useReviewPopup";
 import { checkUserReviewedInDatabase } from "@/lib/reviewPopupManager";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
-import MaleProfile from '/public/ProfileMale.png'
-import FemaleProfile from '/public/ProfileFemale.png'
+// import MaleProfile from '/public/ProfileMale.png'
+// import FemaleProfile from '/public/ProfileFemale.png'
 
 interface UserData {
   id?: number;
@@ -546,7 +546,7 @@ export default function Dashboard() {
           </div>
           <div>
             <Image
-              src={userData.gender == 'male' ? MaleProfile : FemaleProfile}
+              src={userData.gender == 'male' ? '/ProfileMale.png' : '/ProfileFemale.png'}
               width={100}
               height={100}
               alt="Profile page"
