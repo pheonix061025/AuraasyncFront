@@ -186,28 +186,44 @@ export const fetchUserDataFromSupabase = async (): Promise<UserData | null> => {
     // Import Firebase auth dynamically to avoid SSR issues
     const { auth } = await import('./firebase');
     const { supabase } = await import('./supabase');
-    
+
     const currentUser = auth.currentUser;
     if (!currentUser?.email) {
       console.warn('No authenticated Firebase user found');
       return null;
     }
 
-    // Fetch complete user data from Supabase
-    const { data: userData, error } = await supabase
+    // Try to fetch user from Supabase
+    let { data: userData, error } = await supabase
       .from('user')
       .select('*')
       .eq('email', currentUser.email)
-      .maybeSingle(); // Use maybeSingle() instead of single() to handle new users gracefully
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching user data from Supabase:', error);
       return null;
     }
 
+    // If user does not exist, create it
     if (!userData) {
-      console.warn('User not found in Supabase - this is normal for new users');
-      return null;
+      const { data: inserted, error: insertError } = await supabase
+        .from('user')
+        .insert([
+          {
+            email: currentUser.email,
+            name: currentUser.displayName || '',
+            // Add more fields if needed
+          },
+        ])
+        .select('*')
+        .maybeSingle();
+
+      if (insertError) {
+        console.error('Error creating user in Supabase:', insertError);
+        return null;
+      }
+      userData = inserted;
     }
 
     // Transform Supabase data to UserData format
@@ -227,12 +243,12 @@ export const fetchUserDataFromSupabase = async (): Promise<UserData | null> => {
       total_referrals: userData.total_referrals || 0,
       review_popup_status: userData.review_popup_status || 'enabled',
       last_review_popup: userData.last_review_popup || null,
-      user_id: userData.user_id
+      user_id: userData.user_id,
     };
 
     // Update localStorage with fresh data
     setUserData(transformedUserData);
-    
+
     return transformedUserData;
   } catch (error) {
     console.error('Error in fetchUserDataFromSupabase:', error);

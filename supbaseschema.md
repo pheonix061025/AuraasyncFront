@@ -50,6 +50,21 @@ CREATE TABLE public.points_transactions (
   CONSTRAINT points_transactions_pkey PRIMARY KEY (id),
   CONSTRAINT points_transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user(user_id)
 );
+CREATE TABLE public.razorpay_orders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id bigint NOT NULL,
+  razorpay_order_id text NOT NULL UNIQUE,
+  amount integer NOT NULL,
+  currency text DEFAULT 'INR'::text,
+  coins integer NOT NULL,
+  status text NOT NULL DEFAULT 'created'::text,
+  payment_id text,
+  razorpay_signature text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT razorpay_orders_pkey PRIMARY KEY (id),
+  CONSTRAINT razorpay_orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user(user_id)
+);
 CREATE TABLE public.referrals (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   referrer_user_id bigint NOT NULL,
@@ -112,6 +127,31 @@ CREATE TABLE public.user (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT user_pkey PRIMARY KEY (user_id)
+);
+CREATE TABLE public.wallet_balances (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id bigint NOT NULL UNIQUE,
+  balance integer NOT NULL DEFAULT 0,
+  currency text DEFAULT 'INR'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT wallet_balances_pkey PRIMARY KEY (id),
+  CONSTRAINT wallet_balances_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user(user_id)
+);
+CREATE TABLE public.wallet_transactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id bigint NOT NULL,
+  transaction_type text NOT NULL,
+  amount integer NOT NULL,
+  coins integer NOT NULL,
+  description text,
+  razorpay_order_id text,
+  payment_id text,
+  status text NOT NULL DEFAULT 'pending'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT wallet_transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT wallet_transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user(user_id)
 );
 CREATE TABLE public.wardrobe_items (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
