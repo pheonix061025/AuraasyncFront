@@ -147,7 +147,7 @@ export default function Chatbot() {
                             {messages.length === 0 && (
                                 <div className="text-center text-zinc-500 mt-10">
                                     <Sparkles className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                                    <p className="text-sm">Hello! I'm Aura, your personal stylist.</p>
+                                    <p className="text-sm">Hello! I&apos;m Aura, your personal stylist.</p>
                                     <p className="text-xs mt-1">Ask me anything about fashion, outfits, or style!</p>
                                 </div>
                             )}
