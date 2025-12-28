@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import BottomNavigation from "@/components/male/BottomNavigation";
 import { auth } from "../../lib/firebase";
 import { signOut, onAuthStateChanged } from "firebase/auth";
+import { Skeleton } from "@/components/ui/Skeleton";
 import axios from "axios";
 import { getUserData, clearUserData } from "@/lib/userState";
 import ReviewPopup from "@/components/ReviewPopup";
@@ -34,7 +35,7 @@ interface UserData {
   body_shape?: string | null;
   personality?: string | null;
   onboarding_completed: boolean;
-is_new_user?: boolean;
+  is_new_user?: boolean;
   profile_picture?: string;
   points?: number;
   last_login_date?: string;
@@ -47,8 +48,11 @@ export default function Dashboard() {
   const [userData, setUserData] = React.useState<UserData | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [isFetching, setIsFetching] = React.useState(false);
+  const lastFetchTime = React.useRef<number>(0);
+  const hasInitiallyFetched = React.useRef<boolean>(false);
   const router = useRouter();
-console.log(userData)
+  console.log(userData)
 
   // Review popup hook
   const reviewPopup = useAutoReviewPopup();
@@ -59,7 +63,7 @@ console.log(userData)
     try {
       setIsLoading(true);
       setError(null);
-const currentUser = auth.currentUser;
+      const currentUser = auth.currentUser;
       if (!currentUser) {
         setError("No authenticated user found");
 
@@ -67,7 +71,7 @@ const currentUser = auth.currentUser;
         return;
       }
 
-// First, check localStorage for any analysis data that might not be in Supabase
+      // First, check localStorage for any analysis data that might not be in Supabase
       const localUserData = getUserData();
       if (localUserData && (localUserData.skin_tone || localUserData.face_shape || localUserData.body_shape || localUserData.personality)) {
         // Sync localStorage data to Supabase if it exists
@@ -218,7 +222,7 @@ const currentUser = auth.currentUser;
           body_shape: localUserData.body_shape || null,
           personality: localUserData.personality || null,
           onboarding_completed: localUserData.onboarding_completed || false,
-is_new_user: false,
+          is_new_user: false,
           points: localUserData.points || 0,
           last_login_date: localUserData.last_login_date,
           referral_code: localUserData.referral_code,
@@ -292,7 +296,7 @@ is_new_user: false,
   React.useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       if (!fbUser) {
-setError("No authenticated user found");
+        setError("No authenticated user found");
 
         setIsLoading(false);
         return;
@@ -302,34 +306,50 @@ setError("No authenticated user found");
     return () => unsubscribe();
   }, []);
 
-// Refresh data when component becomes visible (e.g., after returning from redo)
+  // Refresh data when component becomes visible (e.g., after returning from redo)
   React.useEffect(() => {
+    let focusTimeout: NodeJS.Timeout;
+    let visibilityTimeout: NodeJS.Timeout;
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && auth.currentUser) {
         // Small delay to ensure any redirects have completed
-        setTimeout(() => {
+        clearTimeout(visibilityTimeout);
+        visibilityTimeout = setTimeout(() => {
           fetchUserData();
         }, 1000);
       }
     };
-    
+
     const handleFocus = () => {
-      if (auth.currentUser && !isLoading) {
-        // Refresh data when window regains focus (user returns from another tab/page)
-        setTimeout(() => {
-          fetchUserData();
-        }, 500);
+      // Don't trigger on initial page load
+      if (!hasInitiallyFetched.current || !auth.currentUser || isLoading || isFetching) {
+        return;
       }
+
+      clearTimeout(focusTimeout);
+      focusTimeout = setTimeout(() => {
+        const timeSinceLastFetch = Date.now() - lastFetchTime.current;
+        // Only refresh if more than 30 seconds have passed
+        if (timeSinceLastFetch > 30000) {
+          console.log('🔍 Window focused after 30+ seconds, checking for updates...');
+          fetchUserData();
+        } else {
+          console.log(`🔍 Window focused but only ${Math.round(timeSinceLastFetch / 1000)}s since last fetch, skipping...`);
+        }
+      }, 1000);
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
-    
+
     return () => {
+      clearTimeout(visibilityTimeout);
+      clearTimeout(focusTimeout);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [isLoading]);
+  }, [isLoading, isFetching]);
 
   // Redirect if no user data and not loading
   React.useEffect(() => {
@@ -344,7 +364,7 @@ setError("No authenticated user found");
       if (!isLoading && userData && userData.user_id) {
         // First, check if user has already submitted a review in the database
         const hasReviewedInDb = await checkUserReviewedInDatabase(userData.user_id);
-        
+
         if (hasReviewedInDb) {
           console.log('User has already submitted a review in database. Popup will not be shown.');
           return;
@@ -369,12 +389,11 @@ setError("No authenticated user found");
     router.push("/");
   };
 
-
   const handleRefresh = () => {
-    fetchUserData();
+    fetchUserData(); // Force refresh
   };
 
-// Function to refresh user data from Supabase
+  // Function to refresh user data from Supabase
   const refreshUserDataFromSupabase = async () => {
     if (!userData?.user_id) return;
 
@@ -418,11 +437,65 @@ setError("No authenticated user found");
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#251F1E]">
+      <div className="min-h-screen bg-[#251F1E] text-white p-4 md:p-8 pb-20">
+        <div className="max-w-4xl mx-auto">
+          {/* Header Skeleton */}
+          <div className="mb-8 md:mt-10 flex items-center justify-between">
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-48" />
+              <Skeleton className="h-10 w-64" />
+              <Skeleton className="h-5 w-72" />
+            </div>
+            <Skeleton className="h-[100px] w-[100px] rounded-full" />
+          </div>
 
-        <div className="text-white text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p>Loading your dashboard...</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Basic Info Skeleton */}
+            <div className="border-t-2 border-white/30 p-6 space-y-6">
+              <Skeleton className="h-8 w-48" />
+              <div className="space-y-4">
+                <div className="flex justify-between"><Skeleton className="h-5 w-24" /><Skeleton className="h-5 w-32" /></div>
+                <div className="flex justify-between"><Skeleton className="h-5 w-24" /><Skeleton className="h-5 w-48" /></div>
+                <div className="flex justify-between"><Skeleton className="h-5 w-24" /><Skeleton className="h-5 w-16" /></div>
+                <div className="flex justify-between"><Skeleton className="h-5 w-24" /><Skeleton className="h-5 w-24" /></div>
+              </div>
+            </div>
+
+            {/* Analysis Results Skeleton */}
+            <div className="border-t-2 border-white/30 p-6 space-y-6">
+              <Skeleton className="h-8 w-48" />
+              <div className="space-y-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex justify-between items-center">
+                    <Skeleton className="h-5 w-24" />
+                    <div className="flex gap-3">
+                      <Skeleton className="h-5 w-24" />
+                      <Skeleton className="h-6 w-12 rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Onboarding Status Skeleton */}
+            <div className="border-t-2 border-white/30 p-6 space-y-6">
+              <Skeleton className="h-8 w-56" />
+              <div className="space-y-4">
+                <div className="flex justify-between"><Skeleton className="h-5 w-32" /><Skeleton className="h-5 w-16" /></div>
+                <div className="flex justify-between"><Skeleton className="h-5 w-32" /><Skeleton className="h-5 w-20" /></div>
+              </div>
+            </div>
+
+            {/* Quick Actions Skeleton */}
+            <div className="border-t-2 border-white/30 p-6 space-y-6">
+              <Skeleton className="h-8 w-40" />
+              <div className="space-y-3">
+                <Skeleton className="h-12 w-full rounded-lg" />
+                <Skeleton className="h-12 w-full rounded-lg" />
+                <Skeleton className="h-12 w-full rounded-lg" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -463,7 +536,7 @@ setError("No authenticated user found");
   }
 
   return (
-<div className="min-h-screen bg-[#251F1E] text-white p-4 md:p-8 pb-20">
+    <div className="min-h-screen bg-[#251F1E] text-white p-4 md:p-8 pb-20">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8 md:mt-10 flex items-center justify-between ">
           <div>
@@ -473,10 +546,10 @@ setError("No authenticated user found");
           </div>
           <div>
             <Image
-            src={userData.gender=='male'?MaleProfile:FemaleProfile}
-            width={100}
-            height={100}
-            alt="Profile page"
+              src={userData.gender == 'male' ? MaleProfile : FemaleProfile}
+              width={100}
+              height={100}
+              alt="Profile page"
             />
           </div>
         </div>
@@ -485,7 +558,7 @@ setError("No authenticated user found");
           {/* Basic Information */}
           <div className=" border-t-2 border-white/30  p-6 ">
             <h2 className="text-2xl font-semibold mb-4 flex playfair items-center">
-              
+
 
               Basic Information
             </h2>
@@ -500,7 +573,7 @@ setError("No authenticated user found");
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-300">Gender:</span>
-<span className="font-medium capitalize">
+                <span className="font-medium capitalize">
                   {userData.gender}
                 </span>
 
@@ -513,9 +586,9 @@ setError("No authenticated user found");
           </div>
 
           {/* Analysis Results */}
-<div className=" border-t-2 border-white/30 p-6">
+          <div className=" border-t-2 border-white/30 p-6">
             <h2 className="text-2xl playfair font-semibold mb-4 flex items-center">
-            
+
 
               Analysis Results
             </h2>
@@ -523,10 +596,9 @@ setError("No authenticated user found");
               <div className="flex justify-between">
                 <span className="text-gray-300">Skin Tone:</span>
                 <div className="flex items-center gap-3">
-<span
-                    className={`font-medium ${
-                      userData.skin_tone ? "text-green-400" : "text-red-400"
-                    }`}
+                  <span
+                    className={`font-medium ${userData.skin_tone ? "text-green-400" : "text-red-400"
+                      }`}
                   >
                     {userData.skin_tone || "Not completed"}
                   </span>
@@ -544,10 +616,9 @@ setError("No authenticated user found");
               <div className="flex justify-between">
                 <span className="text-gray-300">Face Shape:</span>
                 <div className="flex items-center gap-3">
-<span
-                    className={`font-medium ${
-                      userData.face_shape ? "text-green-400" : "text-red-400"
-                    }`}
+                  <span
+                    className={`font-medium ${userData.face_shape ? "text-green-400" : "text-red-400"
+                      }`}
                   >
                     {userData.face_shape || "Not completed"}
                   </span>
@@ -565,10 +636,9 @@ setError("No authenticated user found");
               <div className="flex justify-between">
                 <span className="text-gray-300">Body Shape:</span>
                 <div className="flex items-center gap-3">
-<span
-                    className={`font-medium ${
-                      userData.body_shape ? "text-green-400" : "text-red-400"
-                    }`}
+                  <span
+                    className={`font-medium ${userData.body_shape ? "text-green-400" : "text-red-400"
+                      }`}
                   >
                     {userData.body_shape || "Not completed"}
                   </span>
@@ -586,10 +656,9 @@ setError("No authenticated user found");
               <div className="flex justify-between">
                 <span className="text-gray-300">Personality:</span>
                 <div className="flex items-center gap-3">
-<span
-                    className={`font-medium ${
-                      userData.personality ? "text-green-400" : "text-red-400"
-                    }`}
+                  <span
+                    className={`font-medium ${userData.personality ? "text-green-400" : "text-red-400"
+                      }`}
                   >
                     {userData.personality || "Not completed"}
                   </span>
@@ -608,21 +677,20 @@ setError("No authenticated user found");
           </div>
 
           {/* Onboarding Status */}
-<div className=" border-t-2 border-white/30 p-6">
+          <div className=" border-t-2 border-white/30 p-6">
             <h2 className="text-2xl playfair font-semibold mb-4 flex items-center">
-              
+
 
               Onboarding Status
             </h2>
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-gray-300">Profile Complete:</span>
-<span
-                  className={`font-medium ${
-                    userData.onboarding_completed
-                      ? "text-green-400"
-                      : "text-yellow-400"
-                  }`}
+                <span
+                  className={`font-medium ${userData.onboarding_completed
+                    ? "text-green-400"
+                    : "text-yellow-400"
+                    }`}
                 >
                   {userData.onboarding_completed ? "Yes" : "In Progress"}
 
@@ -630,10 +698,9 @@ setError("No authenticated user found");
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-300">Hairstyle Access:</span>
-<span
-                  className={`font-medium ${
-                    userData.face_shape ? "text-green-400" : "text-red-400"
-                  }`}
+                <span
+                  className={`font-medium ${userData.face_shape ? "text-green-400" : "text-red-400"
+                    }`}
                 >
                   {userData.face_shape ? "Unlocked" : "Locked"}
 
@@ -643,9 +710,9 @@ setError("No authenticated user found");
           </div>
 
           {/* Quick Actions */}
-<div className=" border-t-2 border-white/30 p-6">
+          <div className=" border-t-2 border-white/30 p-6">
             <h2 className="text-2xl playfair font-semibold mb-4 flex items-center">
-             
+
               Quick Actions
             </h2>
             <div className="space-y-3">
@@ -665,14 +732,14 @@ setError("No authenticated user found");
                 onClick={() => router.push("/calendar")}
                 className="w-full bg-[#543630] text-white py-3 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-700 transition-all"
               >
-                 Outfit Calendar
+                Outfit Calendar
               </button>
               {userData.face_shape && (
                 <button
                   onClick={() => router.push("/hairstyle")}
                   className="w-full bg-gradient-to-r from-pink-500 to-rose-600 text-white py-3 rounded-lg font-semibold hover:from-pink-600 hover:to-rose-700 transition-all"
                 >
-                   Hairstyle Recommendations
+                  Hairstyle Recommendations
 
                 </button>
               )}
@@ -680,7 +747,7 @@ setError("No authenticated user found");
                 onClick={handleLogout}
                 className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-lg font-semibold hover:from-red-600 hover:to-red-700 transition-all"
               >
-Logout
+                Logout
 
               </button>
             </div>
@@ -688,7 +755,7 @@ Logout
         </div>
 
         {/* Analysis Completion Progress */}
-<div className="mt-8  border-t-2 border-white/30 p-6">
+        <div className="mt-8  border-t-2 border-white/30 p-6">
           <h2 className="text-2xl playfair font-semibold mb-4 flex items-center">
 
             Analysis Completion
@@ -696,7 +763,7 @@ Logout
           <div className="space-y-4">
             <div className="flex justify-between text-sm">
               <span>Profile Completion</span>
-<span>{userData.onboarding_completed ? "100%" : "75%"}</span>
+              <span>{userData.onboarding_completed ? "100%" : "75%"}</span>
             </div>
             <div className="w-full bg-white/30 rounded-full h-2">
               <div
@@ -747,7 +814,7 @@ Logout
           </div>
         </div>
 
-        
+
       </div>
 
       {/* Review Popup */}

@@ -130,7 +130,7 @@ export class PointsManager {
   // Initialize user with default points
   initializeUser(userData: any): any {
     const today = new Date().toISOString().split('T')[0];
-    
+
     return {
       ...userData,
       points: userData.points || 0,
@@ -159,7 +159,7 @@ export class PointsManager {
 
     const currentPoints = userData.points || 0;
     const newPoints = currentPoints + action.points;
-    
+
     const transaction: PointsTransaction = {
       id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       action: actionId,
@@ -192,7 +192,7 @@ export class PointsManager {
 
     const today = new Date().toISOString().split('T')[0];
     const result = this.awardPoints(userData, 'DAILY_LOGIN', 'Daily login bonus');
-    
+
     return {
       userData: {
         ...result.userData,
@@ -207,10 +207,38 @@ export class PointsManager {
     return this.awardPoints(userData, 'ANALYSIS_COMPLETE', `Completed ${analysisType} analysis`);
   }
 
+  // Deduct points (generic)
+  deductPoints(userData: any, amount: number, actionId: string, description: string): { userData: any; transaction: PointsTransaction; success: boolean } {
+    const currentPoints = userData.points || 0;
+
+    if (currentPoints < amount) {
+      return { userData, transaction: {} as PointsTransaction, success: false };
+    }
+
+    const newPoints = currentPoints - amount;
+
+    const transaction: PointsTransaction = {
+      id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      action: actionId,
+      points: -amount,
+      timestamp: new Date().toISOString(),
+      description: description
+    };
+
+    this.transactions.push(transaction);
+
+    const updatedUserData = {
+      ...userData,
+      points: newPoints
+    };
+
+    return { userData: updatedUserData, transaction, success: true };
+  }
+
   // Award points for referral
   awardReferral(userData: any, referredUserEmail: string): { userData: any; transaction: PointsTransaction } {
     const result = this.awardPoints(userData, 'REFERRAL', `Referred ${referredUserEmail}`);
-    
+
     return {
       userData: {
         ...result.userData,
@@ -229,7 +257,7 @@ export class PointsManager {
   canAffordReward(userData: any, rewardId: string): boolean {
     const reward = POINTS_REWARDS[rewardId];
     if (!reward) return false;
-    
+
     return (userData.points || 0) >= reward.cost;
   }
 
@@ -295,7 +323,7 @@ export class PointsManager {
     const unlockedFeatures = Object.values(POINTS_REWARDS).filter(
       reward => reward.isUnlocked
     ).length;
-    
+
     // Next milestone (every 100 points)
     const nextMilestone = Math.ceil(totalPoints / 100) * 100;
 
@@ -319,14 +347,42 @@ export class PointsManager {
   }
 }
 
+// Global Chat Costs
+export const CHAT_COSTS = {
+  SHORT: 5,   // < 100 chars
+  MEDIUM: 10, // < 300 chars
+  LONG: 20,   // < 600 chars
+  VERY_LONG: 40 // > 600 chars
+};
+
 // Export singleton instance
 export const pointsManager = PointsManager.getInstance();
+
+// Function to calculate and deduct chat points
+export const deductChatPoints = (userData: any, responseText: string) => {
+  const length = responseText.length;
+  let cost = CHAT_COSTS.VERY_LONG;
+  let type = "Very Long";
+
+  if (length < 100) {
+    cost = CHAT_COSTS.SHORT;
+    type = "Short";
+  } else if (length < 300) {
+    cost = CHAT_COSTS.MEDIUM;
+    type = "Medium";
+  } else if (length < 600) {
+    cost = CHAT_COSTS.LONG;
+    type = "Long";
+  }
+
+  return pointsManager.deductPoints(userData, cost, 'CHAT_RESPONSE', `Chatbot response (${type})`);
+};
 
 // Function to ensure user exists in Supabase
 export const ensureUserInSupabase = async (userData: any): Promise<any> => {
   try {
     const { supabase } = await import('./supabase');
-    
+
     // First try to find by user_id if available
     if (userData.user_id) {
       const { data: existingUser, error: userError } = await supabase
@@ -334,23 +390,23 @@ export const ensureUserInSupabase = async (userData: any): Promise<any> => {
         .select('*')
         .eq('user_id', userData.user_id)
         .single();
-        
+
       if (!userError && existingUser) {
         return { ...userData, user_id: existingUser.user_id };
       }
     }
-    
+
     // Try to find by email
     const { data: userByEmail, error: emailError } = await supabase
       .from('user')
       .select('*')
       .eq('email', userData.email)
       .single();
-      
+
     if (!emailError && userByEmail) {
       return { ...userData, user_id: userByEmail.user_id };
     }
-    
+
     // User doesn't exist, create them
     const { data: newUser, error: createError } = await supabase
       .from('user')
@@ -370,14 +426,14 @@ export const ensureUserInSupabase = async (userData: any): Promise<any> => {
       })
       .select()
       .single();
-      
+
     if (createError) {
       console.error('❌ Error creating user:', createError);
       return userData; // Return original data if creation fails
     }
-    
+
     return { ...userData, user_id: newUser.user_id };
-    
+
   } catch (error) {
     console.error('❌ Error in ensureUserInSupabase:', error);
     return userData; // Return original data if error
@@ -389,10 +445,10 @@ export const savePointsToSupabase = async (userData: any, transaction: PointsTra
   try {
     // Import supabase dynamically to avoid SSR issues
     const { supabase } = await import('./supabase');
-    
+
     // Ensure user exists in Supabase first
     const userWithId = await ensureUserInSupabase(userData);
-    
+
     if (!userWithId.user_id) {
       console.warn('❌ No user_id available after ensuring user exists');
       return false;
@@ -427,10 +483,10 @@ export const savePointsToSupabase = async (userData: any, transaction: PointsTra
     }
 
     const newPoints = (currentUser?.points || 0) + transaction.points;
-    
+
     const { error: updateError } = await supabase
       .from('user')
-      .update({ 
+      .update({
         points: newPoints,
         updated_at: new Date().toISOString()
       })
@@ -453,10 +509,10 @@ export const syncLocalPointsToSupabase = async (userData: any): Promise<boolean>
   try {
     // Import supabase dynamically to avoid SSR issues
     const { supabase } = await import('./supabase');
-    
+
     // Ensure user exists in Supabase first
     const userWithId = await ensureUserInSupabase(userData);
-    
+
     if (!userWithId.user_id) {
       console.warn('❌ No user_id available after ensuring user exists');
       return false;
@@ -480,11 +536,11 @@ export const syncLocalPointsToSupabase = async (userData: any): Promise<boolean>
     // If local points are higher, sync them to Supabase
     if (localPoints > supabasePoints) {
       const pointsDifference = localPoints - supabasePoints;
-      
+
       // Update user points in Supabase
       const { error: updateError } = await supabase
         .from('user')
-        .update({ 
+        .update({
           points: localPoints,
           updated_at: new Date().toISOString()
         })

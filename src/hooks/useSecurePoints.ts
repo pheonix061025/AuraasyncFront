@@ -37,18 +37,30 @@ export function useSecurePoints(): UseSecurePointsReturn {
         throw new Error('User email not found');
       }
 
-      // Fetch points directly from Supabase
-      const { data, error: supabaseError } = await supabase
+      // First, get the user_id from the user table
+      const { data: userData, error: userError } = await supabase
         .from('user')
-        .select('points')
+        .select('user_id, points')
         .eq('email', userEmail)
         .single();
 
-      if (supabaseError) {
-        throw new Error(supabaseError.message);
+      if (userError) {
+        throw new Error(userError.message);
       }
 
-      setPoints(data?.points || 0);
+      // Get wallet balance (coins from purchases)
+      const { data: walletData, error: walletError } = await supabase
+        .from('wallet_balances')
+        .select('balance')
+        .eq('user_id', userData.user_id)
+        .single();
+
+      // Combine points from user table and wallet balance
+      const userPoints = userData?.points || 0;
+      const walletBalance = walletData?.balance || 0;
+      const totalPoints = userPoints + walletBalance;
+
+      setPoints(totalPoints);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load points');
       setPoints(0);

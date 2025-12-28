@@ -33,29 +33,28 @@ export default function GenderNavbar({ gender }: GenderNavbarProps) {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link 
+            <Link
               href={`/${gender}`}
               className="text-white hover:text-blue-400 transition-colors flex items-center space-x-2"
             >
               <span>🏠</span>
               <span>Home</span>
             </Link>
-            
-            <Link 
+
+            <Link
               href="/dashboard"
               className="text-white hover:text-blue-400 transition-colors flex items-center space-x-2"
             >
               <span>📊</span>
               <span>Dashboard</span>
             </Link>
-            
-            <Link 
+
+            <Link
               href={isFaceAnalysisCompleted ? "/hairstyle" : "#"}
-              className={`transition-colors flex items-center space-x-2 ${
-                isFaceAnalysisCompleted 
-                  ? 'text-white hover:text-blue-400' 
+              className={`transition-colors flex items-center space-x-2 ${isFaceAnalysisCompleted
+                  ? 'text-white hover:text-blue-400'
                   : 'text-gray-500 cursor-not-allowed'
-              }`}
+                }`}
               onClick={(e) => {
                 if (!isFaceAnalysisCompleted) {
                   e.preventDefault();
@@ -67,31 +66,25 @@ export default function GenderNavbar({ gender }: GenderNavbarProps) {
               <span>Hairstyle</span>
               {!isFaceAnalysisCompleted && <span className="text-xs text-red-400">(Locked)</span>}
             </Link>
-            
-            <Link 
-              href="/search"
-              className="text-white hover:text-blue-400 transition-colors flex items-center space-x-2"
-            >
-              <span>🔍</span>
-              <span>Search</span>
-            </Link>
+
+
           </div>
 
           {/* User Menu */}
           <div className="flex items-center space-x-2 md:space-x-4">
             {/* Points Display */}
             <div className="hidden sm:block">
-              <PointsDisplay 
-                userData={userData} 
+              <PointsDisplay
+                userData={userData}
                 compact={true}
               />
             </div>
-            
+
             <div className="hidden md:flex items-center space-x-2 text-white">
               <span>👤</span>
               <span className="text-sm">{userData?.name || 'User'}</span>
             </div>
-            
+
             <button
               onClick={handleLogout}
               className="text-white hover:text-red-400 transition-colors text-sm"
@@ -119,29 +112,28 @@ export default function GenderNavbar({ gender }: GenderNavbarProps) {
         {isMenuOpen && (
           <div className="md:hidden border-t border-white/10">
             <div className="px-2 pt-2 pb-3 space-y-1">
-              <Link 
+              <Link
                 href={`/${gender}`}
                 className="block px-3 py-2 text-white hover:text-blue-400 transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 🏠 Home
               </Link>
-              
-              <Link 
+
+              <Link
                 href="/dashboard"
                 className="block px-3 py-2 text-white hover:text-blue-400 transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 📊 Dashboard
               </Link>
-              
-              <Link 
+
+              <Link
                 href={isFaceAnalysisCompleted ? "/hairstyle" : "#"}
-                className={`block px-3 py-2 transition-colors ${
-                  isFaceAnalysisCompleted 
-                    ? 'text-white hover:text-blue-400' 
+                className={`block px-3 py-2 transition-colors ${isFaceAnalysisCompleted
+                    ? 'text-white hover:text-blue-400'
                     : 'text-gray-500 cursor-not-allowed'
-                }`}
+                  }`}
                 onClick={(e) => {
                   if (!isFaceAnalysisCompleted) {
                     e.preventDefault();
@@ -153,24 +145,18 @@ export default function GenderNavbar({ gender }: GenderNavbarProps) {
               >
                 💇 Hairstyle {!isFaceAnalysisCompleted && '(Locked)'}
               </Link>
-              
-              <Link 
-                href="/search"
-                className="block px-3 py-2 text-white hover:text-blue-400 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                🔍 Search
-              </Link>
-              
+
+
+
               <div className="border-t border-white/10 pt-2 mt-2">
                 {/* Mobile Points Display */}
                 <div className="px-3 py-2">
-                  <PointsDisplay 
-                    userData={userData} 
+                  <PointsDisplay
+                    userData={userData}
                     compact={true}
                   />
                 </div>
-                
+
                 <div className="px-3 py-2 text-white text-sm">
                   👤 {userData?.name || 'User'}
                 </div>

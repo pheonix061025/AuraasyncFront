@@ -6,16 +6,15 @@ import { useRouter } from "next/navigation";
 
 const NavItem = ({ children, className = "", onClick, isMobile }) => {
   const [isHovered, setIsHovered] = useState(false);
-const router=useRouter();
+  const router = useRouter();
   return (
-    
+
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={onClick}
-      className={`relative flex items-center justify-center ${
-        isMobile ? "w-10 h-10" : "w-14 h-14"
-      } focus:outline-none transition-all duration-200 ${className}`}
+      className={`relative flex items-center justify-center ${isMobile ? "w-10 h-10" : "w-14 h-14"
+        } focus:outline-none transition-all duration-200 ${className}`}
       tabIndex={0}
       role="button"
       aria-haspopup="true"
@@ -28,16 +27,15 @@ const router=useRouter();
 };
 
 const NavIcon = ({ children, className = "", isHovered = false }) => {
-  const router=useRouter();
+  const router = useRouter();
   return (
     <div
       className={`flex items-center justify-center transition-all duration-200 ${className}`}
     >
       <div
-      onClick={()=>router.push('/onboarding')}
-        className={`text-white transition-all duration-200  ${
-          isHovered ? "scale-110 text-gray-300" : "text-white"
-        }`}
+        onClick={() => router.push('/onboarding')}
+        className={`text-white transition-all duration-200  ${isHovered ? "scale-110 text-gray-300" : "text-white"
+          }`}
       >
         {children}
       </div>
@@ -115,7 +113,7 @@ const Navbar = ({
   return (
     // ✅ Always-mounted wrapper
     <div className="fixed top-0 left-0 w-full pointer-events-none z-[9999]">
-      {/* <AnimatePresence>
+      <AnimatePresence>
         {(isVisible || landingComplete) && (
           <motion.div
             key="navbar"
@@ -123,22 +121,19 @@ const Navbar = ({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className={`absolute ${
-              isMobile
+            className={`absolute pointer-events-auto ${isMobile
                 ? "bottom-4 left-1/2 transform -translate-x-1/2 max-w-[85vw]"
                 : "left-4"
-            }`}
+              }`}
             style={{
               top: isMobile ? undefined : menuTopPosition,
               transform: isMobile ? "translateX(-50%)" : "translateY(-50%)",
             }}
           >
             <div
-              className={`flex ${
-                isMobile ? "flex-row space-x-1" : "flex-col space-y-2"
-              } items-center ${
-                isMobile ? "py-4 px-1" : "py-8 px-2"
-              } ${className}`}
+              className={`flex ${isMobile ? "flex-row space-x-1" : "flex-col space-y-2"
+                } items-center ${isMobile ? "py-4 px-1" : "py-8 px-2"
+                } ${className}`}
               role="toolbar"
               aria-label="Application navigation"
               style={{
@@ -151,18 +146,17 @@ const Navbar = ({
               {items.map((item, index) => (
                 <div
                   key={index}
-                  className={`${
-                    isMobile
+                  className={`${isMobile
                       ? index !== items.length - 1
                         ? "border-r border-gray-600"
                         : ""
                       : index !== items.length - 1
-                      ? "border-b border-gray-600"
-                      : ""
-                  }`}
+                        ? "border-b border-gray-600"
+                        : ""
+                    }`}
                 >
-                  <NavItem 
-                    onClick={item.onClick} 
+                  <NavItem
+                    onClick={item.onClick}
                     isMobile={isMobile}
                   >
                     <NavIcon>{item.icon}</NavIcon>
@@ -172,8 +166,7 @@ const Navbar = ({
             </div>
           </motion.div>
         )}
-      </AnimatePresence> */}
-    </div>
+      </AnimatePresence>    </div>
   );
 };
 

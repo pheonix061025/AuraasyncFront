@@ -57,42 +57,49 @@ const SkinFaceAnalysisStep = ({
   const [showFaceInstructions, setShowFaceInstructions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showCustomWebcam, setShowCustomWebcam] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Mobile-only preloader before starting camera capture
   const [isMobilePreloading, setIsMobilePreloading] = useState(false);
 
   const handleNext = async () => {
-    if (analysisData.skin_tone) {
-      const updatedData = { ...userData, ...analysisData };
-      
-      // Award points for completing skin/face analysis
-      const pointsResult = awardAnalysisPoints(updatedData, 'Skin & Face Analysis');
-      const finalData = pointsResult.userData;
-      
-      // Save points to Supabase if user_id is available
-      if (finalData.user_id) {
-        await savePointsToSupabase(finalData, pointsResult.transaction);
-      }
-      
-      // Save analysis data to Supabase
-      if (saveUserDataToSupabase) {
-        await saveUserDataToSupabase(finalData);
-      }
-      
-      updateUserData(finalData);
-      setUserDataState(finalData);
+    if (analysisData.skin_tone && !isSaving) {
+      setIsSaving(true);
+      try {
+        const updatedData = { ...userData, ...analysisData };
 
-      // Update localStorage with the new data
-      localStorage.setItem('aurasync_user_data', JSON.stringify(finalData));
+        // Award points for completing skin/face analysis
+        const pointsResult = awardAnalysisPoints(updatedData, 'Skin & Face Analysis');
+        const finalData = pointsResult.userData;
 
-      // Show review popup after analysis completion
-      if (reviewPopup) {
-        setTimeout(() => {
-          reviewPopup.showAfterAnalysis();
-        }, 1000);
+        // Parallelize API calls
+        await Promise.all([
+          // Save points to Supabase if user_id is available
+          finalData.user_id ? savePointsToSupabase(finalData, pointsResult.transaction) : Promise.resolve(),
+          // Save analysis data to Supabase
+          saveUserDataToSupabase ? saveUserDataToSupabase(finalData) : Promise.resolve()
+        ]);
+
+        updateUserData(finalData);
+        setUserDataState(finalData);
+
+        // Update localStorage with the new data
+        localStorage.setItem('aurasync_user_data', JSON.stringify(finalData));
+
+        // Show review popup after analysis completion
+        if (reviewPopup) {
+          setTimeout(() => {
+            reviewPopup.showAfterAnalysis();
+          }, 1000);
+        }
+
+        setCurrentStep(STEPS.BODY_ANALYSIS);
+      } catch (error) {
+        console.error("Error saving data:", error);
+        // Optional: Show error toast
+      } finally {
+        setIsSaving(false);
       }
-
-      setCurrentStep(STEPS.BODY_ANALYSIS);
     }
   };
 
@@ -135,7 +142,7 @@ const SkinFaceAnalysisStep = ({
     setIsMobilePreloading(true);
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setIsMobilePreloading(false);
-    
+
     startAnalysis(targetType as "skin_tone" | "face_shape", "camera");
   };
 
@@ -159,10 +166,10 @@ const SkinFaceAnalysisStep = ({
       if (!blob || blob.size === 0) {
         throw new Error('Invalid or empty image blob');
       }
-      
+
       // Ensure blob has correct MIME type
       const imageBlob = blob.type === 'image/jpeg' ? blob : new Blob([blob], { type: 'image/jpeg' });
-      
+
       // Retry wrapper to handle transient 5xx/429 failures from the API route
       const fetchWithRetry = async (
         url: string,
@@ -192,23 +199,23 @@ const SkinFaceAnalysisStep = ({
           const reader = new FileReader();
           reader.onloadend = () => {
             const res = (reader.result as string) || "";
-            
+
             // Validate we have data
             if (!res) {
               reject(new Error("FileReader returned empty result"));
               return;
             }
-            
+
             // Ensure we properly extract base64 data after the comma
             const parts = res.split(",");
             const base64 = parts.length > 1 ? parts[1] : res;
-            
+
             // Validate base64 is not empty and has reasonable length
             if (!base64 || base64.length < 100) {
               reject(new Error(`Invalid base64 data: length=${base64.length}`));
               return;
             }
-            
+
             resolve(base64);
           };
           reader.onerror = (error) => {
@@ -769,10 +776,14 @@ const SkinFaceAnalysisStep = ({
               handleNext();
             }
           }}
-          disabled={singleMode ? (singleTarget === 'skin' ? !analysisData.skin_tone : !analysisData.face_shape) : !analysisData.skin_tone}
-          className="px-6 py-2 rounded-lg bg-[#444141] text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#555] transition-all"
+          disabled={singleMode ? (singleTarget === 'skin' ? !analysisData.skin_tone : !analysisData.face_shape) : !analysisData.skin_tone || isSaving}
+          className="px-6 py-2 rounded-lg bg-[#444141] text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#555] transition-all flex items-center gap-2 min-w-[100px] justify-center"
         >
-          Next
+          {isSaving ? (
+            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            "Next"
+          )}
         </button>
       </div>
     </div>
@@ -1098,7 +1109,7 @@ const SkinFaceAnalysisStep = ({
                         Upload +
                       </button>
                     </div>
-                    
+
                     <div className=" justify-between  ">
                       {!(singleMode && singleTarget === 'face') && (
                         <button

@@ -4,6 +4,7 @@ import "./globals.css";
 import ConditionalFooter from '../components/ConditionalFooter';
 import FlowController from '../components/FlowController';
 import CoinToWalletFXClient from '../components/CoinToWalletFXClient';
+import Chatbot from '../components/Chatbot';
 
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 import { Suspense } from 'react'
@@ -20,7 +21,7 @@ const playfair = Playfair_Display({
   display: "swap",
 });
 
-const popin=Poppins({
+const popin = Poppins({
   subsets: ["latin"],
   variable: "--font-popins",
   display: "swap",
@@ -28,8 +29,8 @@ const popin=Poppins({
 })
 
 export const metadata: Metadata = {
-        title: "Auraasync - AI-Powered Fashion Analysis & Style Recommendations",
-    description: "Discover your unique fashion personality with Auraasync's AI-powered body analysis, face shape detection, skin tone analysis, and personalized style recommendations. Get expert fashion advice tailored to your body type, personality, and preferences.",
+  title: "Auraasync - AI-Powered Fashion Analysis & Style Recommendations",
+  description: "Discover your unique fashion personality with Auraasync's AI-powered body analysis, face shape detection, skin tone analysis, and personalized style recommendations. Get expert fashion advice tailored to your body type, personality, and preferences.",
   keywords: [
     "fashion analysis",
     "body type detection",
@@ -44,15 +45,15 @@ export const metadata: Metadata = {
     "personal styling",
     "fashion technology"
   ],
-      authors: [{ name: "Auraasync Team" }],
-      creator: "Auraasync",
-      publisher: "Auraasync",
+  authors: [{ name: "Auraasync Team" }],
+  creator: "Auraasync",
+  publisher: "Auraasync",
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
-      metadataBase: new URL('https://auraasync.com'),
+  metadataBase: new URL('https://auraasync.com'),
   alternates: {
     canonical: '/',
   },
@@ -65,8 +66,8 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Auraasync - AI-Powered Fashion Analysis & Style Recommendations",
     description: "Discover your unique fashion personality with AI-powered analysis. Get personalized style recommendations based on your body type, face shape, and personality.",
-          url: 'https://auraasync.com',
-          siteName: 'Auraasync',
+    url: 'https://auraasync.com',
+    siteName: 'Auraasync',
     images: [
       {
         url: '/hero-image.jpg',
@@ -110,13 +111,14 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${montserrat.variable} ${popin.variable} ${playfair.variable}`}>
       <body className="bg-black text-white flex flex-col min-h-screen">
-<CoinToWalletFXClient />
+        <CoinToWalletFXClient />
+        <Chatbot />
 
         {process.env.NODE_ENV === 'production' && (
           <Suspense fallback={null}>
             <GoogleAnalytics GA_MEASUREMENT_ID={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID!} />
           </Suspense>
-          )}
+        )}
         <FlowController>
           <div className="flex-grow">
             {children}

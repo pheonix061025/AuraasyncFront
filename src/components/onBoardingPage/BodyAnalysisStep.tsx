@@ -79,38 +79,46 @@ const BodyAnalysisStep = ({
   const [isMobilePreloadingBody, setIsMobilePreloadingBody] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showCustomWebcam, setShowCustomWebcam] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleNext = async () => {
-    const updatedData = { ...userData, body_shape: analysisData.body_shape };
-    
-    // Award points for completing body analysis
-    const pointsResult = awardAnalysisPoints(updatedData, 'Body Analysis');
-    const finalData = pointsResult.userData;
-    
-    // Save points to Supabase if user_id is available
-    if (finalData.user_id) {
-      await savePointsToSupabase(finalData, pointsResult.transaction);
-    }
-    
-    // Save analysis data to Supabase
-    if (saveUserDataToSupabase) {
-      await saveUserDataToSupabase(finalData);
-    }
-    
-    updateUserData(finalData);
-    setUserDataState(finalData);
+    if (isSaving) return;
+    setIsSaving(true);
 
-    // Update localStorage with the new data
-    localStorage.setItem('aurasync_user_data', JSON.stringify(finalData));
+    try {
+      const updatedData = { ...userData, body_shape: analysisData.body_shape };
 
-    // Show review popup after analysis completion
-    if (reviewPopup) {
-      setTimeout(() => {
-        reviewPopup.showAfterAnalysis();
-      }, 1000);
+      // Award points for completing body analysis
+      const pointsResult = awardAnalysisPoints(updatedData, 'Body Analysis');
+      const finalData = pointsResult.userData;
+
+      // Parallelize API calls
+      await Promise.all([
+        // Save points to Supabase if user_id is available
+        finalData.user_id ? savePointsToSupabase(finalData, pointsResult.transaction) : Promise.resolve(),
+        // Save analysis data to Supabase
+        saveUserDataToSupabase ? saveUserDataToSupabase(finalData) : Promise.resolve()
+      ]);
+
+      updateUserData(finalData);
+      setUserDataState(finalData);
+
+      // Update localStorage with the new data
+      localStorage.setItem('aurasync_user_data', JSON.stringify(finalData));
+
+      // Show review popup after analysis completion
+      if (reviewPopup) {
+        setTimeout(() => {
+          reviewPopup.showAfterAnalysis();
+        }, 1000);
+      }
+
+      setCurrentStep(STEPS.PERSONALITY_ANALYSIS);
+    } catch (error) {
+      console.error("Error saving body analysis:", error);
+    } finally {
+      setIsSaving(false);
     }
-
-    setCurrentStep(STEPS.PERSONALITY_ANALYSIS);
   };
 
   const startAnalysis = async (
@@ -147,7 +155,7 @@ const BodyAnalysisStep = ({
     setIsMobilePreloadingBody(true);
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setIsMobilePreloadingBody(false);
-    
+
     startAnalysis("body_shape", "camera");
   };
 
@@ -171,32 +179,32 @@ const BodyAnalysisStep = ({
       if (!blob || blob.size === 0) {
         throw new Error('Invalid or empty image blob');
       }
-      
+
       // Ensure blob has correct MIME type
       const imageBlob = blob.type === 'image/jpeg' ? blob : new Blob([blob], { type: 'image/jpeg' });
-      
+
       const blobToBase64 = (b: Blob) =>
         new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onloadend = () => {
             const res = (reader.result as string) || "";
-            
+
             // Validate we have data
             if (!res) {
               reject(new Error("FileReader returned empty result"));
               return;
             }
-            
+
             // Ensure we properly extract base64 data after the comma
             const parts = res.split(",");
             const base64 = parts.length > 1 ? parts[1] : res;
-            
+
             // Validate base64 is not empty and has reasonable length
             if (!base64 || base64.length < 100) {
               reject(new Error(`Invalid base64 data: length=${base64.length}`));
               return;
             }
-            
+
             resolve(base64);
           };
           reader.onerror = (error) => {
@@ -1162,10 +1170,14 @@ const BodyAnalysisStep = ({
                       </button>
                       <button
                         onClick={handleNext}
-                        disabled={!analysisData.body_shape}
-                        className="px-8 py-3 w-full rounded-lg bg-white/10 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-600 hover:to-purple-700 transition-all"
+                        disabled={!analysisData.body_shape || isSaving}
+                        className="px-8 py-3 w-full rounded-lg bg-white/10 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-600 hover:to-purple-700 transition-all flex items-center gap-2 justify-center min-w-[100px]"
                       >
-                        Next
+                        {isSaving ? (
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          "Next"
+                        )}
                       </button>
                     </div>
                   </div>
