@@ -253,7 +253,7 @@ export function RewardModal({
     setIsClaimingPoints(true);
 
     try {
-      // Award points using points manager
+      // Map task.id to actionId
       const actionMap: Record<string, string> = {
         signup: "SIGNUP",
         analysis_complete: "ANALYSIS_COMPLETE",
@@ -261,78 +261,60 @@ export function RewardModal({
         referral: "REFERRAL",
         review: "REVIEW",
       };
-
       const actionId = actionMap[task.id] || task.id.toUpperCase();
-      const result = pointsManager.awardPoints(userData, actionId, task.action);
 
-      // If claiming daily login, update last_login_date
-      if (task.id === "daily_login") {
-        const today = new Date().toISOString().split("T")[0];
-        result.userData.last_login_date = today;
+      // Award points via /api/points for atomic, logged transaction
+      const pointsRes = await fetch("/api/points", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userData.user_id,
+          action: "award",
+          points: task.points,
+          description: actionId,
+        }),
+      });
+      if (!pointsRes.ok) {
+        const errorData = await pointsRes.json();
+        throw new Error(errorData.error || "Failed to award points. Please try again.");
+      }
+      const pointsData = await pointsRes.json();
+      // Update user points locally
+      if (pointsData.user) {
+        setUserCoins(pointsData.user.points || 0);
+        onPointsUpdate?.(pointsData.user);
       }
 
-      // Save to Supabase
-      const saveSuccess = await savePointsToSupabase(
-        result.userData,
-        result.transaction
-      );
-
-      if (saveSuccess) {
-        // Also update last_login_date in Supabase if this is daily login
-        if (task.id === "daily_login") {
-          const today = new Date().toISOString().split("T")[0];
-          await supabase
-            .from("user")
-            .update({ last_login_date: today })
-            .eq("user_id", userData.user_id);
-        }
-
-        // Fetch fresh data from Supabase to get accurate count
-        const { data: freshData, error: fetchError } = await supabase
+      // If claiming daily login, update last_login_date in Supabase
+      if (task.id === "daily_login") {
+        const today = new Date().toISOString().split("T")[0];
+        await supabase
           .from("user")
-          .select("*")
-          .eq("user_id", userData.user_id)
-          .single();
+          .update({ last_login_date: today })
+          .eq("user_id", userData.user_id);
+      }
 
-        if (!fetchError && freshData) {
-          setUserCoins(freshData.points || 0);
+      // Reload tasks to update canClaim status
+      loadTasksData();
 
-          // Update userData with fresh data
-          const updatedUserData = {
-            ...result.userData,
-            points: freshData.points,
-            last_login_date: freshData.last_login_date,
-          };
-          onPointsUpdate?.(updatedUserData);
-        } else {
-          setUserCoins(result.userData.points);
-          onPointsUpdate?.(result.userData);
-        }
-
-        // Reload tasks to update canClaim status
-        loadTasksData();
-
-        // Play coin sound when claim button is clicked
-        if (typeof window !== "undefined") {
-          try {
-            const audio = new Audio("/coin-prize.wav");
-            audio.volume = 0.5;
-            audio.play().catch(() => {
-              // Silently fail if audio can't play
-            });
-          } catch (error) {
-            console.error("Error playing coin sound:", error);
-          }
-          // Trigger coin-to-wallet animation from the claim button area
-          const btn = document.getElementById("wallet-anchor");
-          const start = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-          const event = new CustomEvent("coin:to-wallet", {
-            detail: { count: 10, start },
+      // Play coin sound when claim button is clicked
+      if (typeof window !== "undefined") {
+        try {
+          const audio = new Audio("/coin-prize.wav");
+          audio.volume = 0.5;
+          audio.play().catch(() => {
+            // Silently fail if audio can't play
           });
-          window.dispatchEvent(event);
+        } catch (error) {
+          console.error("Error playing coin sound:", error);
         }
-      } else {
-        alert("Failed to save points. Please try again.");
+        // Trigger coin-to-wallet animation from the claim button area
+        const btn = document.getElementById("wallet-anchor");
+        const start = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        const event = new CustomEvent("coin:to-wallet", {
+          detail: { count: 10, start },
+        });
+        window.dispatchEvent(event);
       }
     } catch (error) {
       console.error("Error claiming task:", error);

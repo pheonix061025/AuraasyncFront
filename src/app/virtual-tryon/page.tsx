@@ -1,9 +1,11 @@
 'use client';
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { Upload, CloudDownload, HelpCircle, Info, User, Maximize2, Play, GitCompare, Clock, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { getCurrentUserData, refreshUserData, setUserData } from '@/lib/userState';
 
 const VirtualTryOnPage = () => {
   const router = useRouter();
@@ -13,11 +15,22 @@ const VirtualTryOnPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'adjustments' | 'share' | 'tryon'>('tryon');
   const [countdown, setCountdown] = useState<number>(0);
-
   const [showGuidelines, setShowGuidelines] = useState(false);
+  const [userPoints, setUserPoints] = useState<number | null>(null);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const dressInputRef = useRef<HTMLInputElement>(null);
   const modelInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch user points on mount
+  useEffect(() => {
+    (async () => {
+      const user = await getCurrentUserData();
+      setUserPoints(user?.points ?? null);
+      setUserId(user?.user_id ?? null);
+    })();
+  }, []);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -49,25 +62,58 @@ const VirtualTryOnPage = () => {
   };
 
   const handleTryOn = async () => {
+    setErrorMsg(null);
     if (!dressImage || !modelImage) return;
+    if (!userId) {
+      setErrorMsg('User not authenticated. Please log in.');
+      return;
+    }
+    if (userPoints !== null && userPoints < 100) {
+      setErrorMsg('Not enough coins. You need 100 coins to use Virtual Try-On.');
+      return;
+    }
     setIsProcessing(true);
 
+    // Deduct 100 coins atomically before try-on
     try {
+      const pointsRes = await fetch('/api/points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          action: 'virtual_tryon',
+          points: -100,
+          description: 'Virtual Try-On session'
+        })
+      });
+      const pointsData = await pointsRes.json();
+      if (!pointsRes.ok) {
+        setErrorMsg(pointsData.error || 'Failed to deduct coins.');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Refresh user points after deduction
+      const freshUser = await refreshUserData();
+      setUserPoints(freshUser?.points ?? null);
+      setUserId(freshUser?.user_id ?? null);
+      setErrorMsg(null);
+
+      // Proceed with try-on
       const response = await fetch('/api/virtual-tryon', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dressImage, modelImage })
       });
-
       const data = await response.json();
 
       if (!response.ok) {
         if (data.isQuotaError) {
           const retryTime = data.retryAfter || 10;
           setCountdown(retryTime);
-          alert(`⚠️ Rate Limit Reached\nPlease wait ${retryTime}s.`);
+          setErrorMsg(`⚠️ Rate Limit Reached. Please wait ${retryTime}s.`);
         } else {
-          alert(data.error || 'Failed to process virtual try-on');
+          setErrorMsg(data.error || 'Failed to process virtual try-on');
         }
         return;
       }
@@ -75,10 +121,10 @@ const VirtualTryOnPage = () => {
       if (data.success && data.image) {
         setResultImage(data.image);
       } else {
-        alert('Failed to generate try-on image');
+        setErrorMsg('Failed to generate try-on image');
       }
     } catch (error: any) {
-      alert(error.message || 'An error occurred');
+      setErrorMsg(error.message || 'An error occurred');
     } finally {
       setIsProcessing(false);
     }
@@ -97,6 +143,15 @@ const VirtualTryOnPage = () => {
         </button>
       </div>
       <main className="max-w-[90vw] mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        {/* Points and error display */}
+        <div className="mb-4 flex flex-col items-center">
+          {userPoints !== null && (
+            <div className="text-lg font-semibold text-yellow-400">🪙 {userPoints} coins</div>
+          )}
+          {errorMsg && (
+            <div className="mt-2 text-red-400 text-sm text-center max-w-md">{errorMsg}</div>
+          )}
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
           {/* LEFT PANEL */}

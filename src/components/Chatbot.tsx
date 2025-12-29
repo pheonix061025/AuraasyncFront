@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { MessageCircle, X, Send, User, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getUserData, setUserData } from "@/lib/userState";
+import { supabase } from "@/lib/supabase";
 import { deductChatPoints, savePointsToSupabase } from "@/lib/pointsSystem";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -15,16 +16,56 @@ interface Message {
 }
 
 export default function Chatbot() {
-    const [isOpen, setIsOpen] = useState(false);
+const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    // Coin deduction preview state
+    const [coinCost, setCoinCost] = useState(0);
+    const [coinType, setCoinType] = useState('Short');
+    const [userCoins, setUserCoins] = useState<number>(0);
+
+    // Update coin deduction info as user types
+    useEffect(() => {
+        const length = input.length;
+        let cost = 40;
+        let type = 'Very Long';
+        if (length < 100) {
+            cost = 5;
+            type = 'Short';
+        } else if (length < 300) {
+            cost = 10;
+            type = 'Medium';
+        } else if (length < 600) {
+            cost = 20;
+            type = 'Long';
+        }
+        setCoinCost(cost);
+        setCoinType(type);
+    }, [input]);
+
+    // Fetch latest user points from Supabase
+    const fetchUserPoints = async (user_id?: number) => {
+        if (!user_id) return;
+        const { data, error } = await supabase
+            .from('user')
+            .select('points')
+            .eq('user_id', user_id)
+            .single();
+        if (!error && data && typeof data.points === 'number') {
+            setUserCoins(data.points);
+        }
+    };
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setIsAuthenticated(!!user);
+            if (user) {
+                const localUser = getUserData();
+                if (localUser?.user_id) fetchUserPoints(localUser.user_id);
+            }
         });
         return () => unsubscribe();
     }, []);
@@ -44,11 +85,81 @@ export default function Chatbot() {
         if (!input.trim()) return;
 
         const userMessage = input.trim();
-        setInput("");
-        setMessages((prev) => [...prev, { role: "user", parts: userMessage }]);
-        setIsLoading(true);
+        // Deduct coins BEFORE sending
+        const currentUser = getUserData();
+        let cost = 40;
+        let type = 'Very Long';
+        const length = userMessage.length;
+        if (length < 100) {
+            cost = 5;
+            type = 'Short';
+        } else if (length < 300) {
+            cost = 10;
+            type = 'Medium';
+        } else if (length < 600) {
+            cost = 20;
+            type = 'Long';
+        }
+        // Always check latest points from server before sending
+        let latestPoints = currentUser?.points ?? 0;
+        if (currentUser?.user_id) {
+            const { data, error } = await supabase
+                .from('user')
+                .select('points')
+                .eq('user_id', currentUser.user_id)
+                .single();
+            if (!error && data && typeof data.points === 'number') {
+                latestPoints = data.points;
+                setUserCoins(data.points);
+            }
+        }
+        if (latestPoints < cost) {
+            setMessages((prev) => [
+                ...prev,
+                { role: "model", parts: `Error: You need at least ${cost} coins to send a ${type.toLowerCase()} message. Please top up your coins.` },
+            ]);
+            return;
+        }
 
+        // Deduct coins via /api/points before sending
+        setIsLoading(true);
         try {
+            // Get user_id from currentUser
+            const user_id = currentUser?.user_id;
+            if (!user_id) {
+                setMessages((prev) => [
+                    ...prev,
+                    { role: "model", parts: `Error: Unable to identify user. Please re-login.` },
+                ]);
+                setIsLoading(false);
+                return;
+            }
+            const pointsRes = await fetch("/api/points", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    user_id,
+                    action: "deduct",
+                    points: -cost,
+                    description: `Chatbot message (${type})`,
+                }),
+            });
+            if (!pointsRes.ok) {
+                const errorData = await pointsRes.json();
+                throw new Error(errorData.error || `Error: You need at least ${cost} coins to send a ${type.toLowerCase()} message. Please top up your coins.`);
+            }
+            // Update user points locally
+            const pointsData = await pointsRes.json();
+            if (pointsData.user) {
+                setUserData(pointsData.user);
+                window.dispatchEvent(new Event('user_points_updated'));
+                // Fetch and update latest points from server
+                fetchUserPoints(pointsData.user.user_id);
+            }
+
+            setInput("");
+            setMessages((prev) => [...prev, { role: "user", parts: userMessage }]);
+
             // Limit history to last 6 messages (3 turns) to save tokens
             const recentMessages = messages.slice(-6);
             const history = recentMessages.map(msg => ({
@@ -80,24 +191,11 @@ export default function Chatbot() {
                     products: data.products
                 }
             ]);
-
-            // Deduct coins based on response length
-            const currentUser = getUserData();
-            if (currentUser) {
-                const result = deductChatPoints(currentUser, data.text);
-                if (result.success) {
-                    setUserData(result.userData);
-                    // Dispatch event for Navbar/RewardModal to update
-                    window.dispatchEvent(new Event('user_points_updated'));
-                    // Async sync to DB
-                    savePointsToSupabase(result.userData, result.transaction);
-                }
-            }
         } catch (error: any) {
             console.error(error);
             setMessages((prev) => [
                 ...prev,
-                { role: "model", parts: `Error: ${error.message || "Sorry, I'm having trouble connecting to the fashion servers right now. Please try again later."}` },
+                { role: "model", parts: error.message || `Error: Sorry, I'm having trouble connecting to the fashion servers right now. Please try again later.` },
             ]);
         } finally {
             setIsLoading(false);
@@ -140,6 +238,12 @@ export default function Chatbot() {
                             >
                                 <X className="w-5 h-5" />
                             </button>
+                        </div>
+
+                        {/* Coin Balance */}
+                        <div className="px-4 pt-2 pb-1 text-xs text-yellow-300 flex items-center gap-2">
+                            <span>Coins:</span>
+                            <span className="font-bold text-yellow-400">{userCoins}</span>
                         </div>
 
                         {/* Messages */}
@@ -214,6 +318,12 @@ export default function Chatbot() {
 
                         {/* Input */}
                         <div className="p-3 bg-black border-t border-zinc-800">
+                            {/* Coin deduction info */}
+                            <div className="flex items-center mb-1 text-xs text-yellow-300 gap-2">
+                                <span>Chatbot message cost:</span>
+                                <span className="font-bold text-yellow-400">{coinCost} coins</span>
+                                <span className="text-yellow-200">({coinType})</span>
+                            </div>
                             <div className="flex gap-2 items-center bg-zinc-900 rounded-xl px-3 py-2 border border-zinc-800 focus-within:border-zinc-700 transition-colors">
                                 <input
                                     type="text"
