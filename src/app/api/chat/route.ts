@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     const { message, history } = await req.json();
 
     // ✅ Correct env var
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
