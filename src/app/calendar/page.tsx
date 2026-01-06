@@ -7,8 +7,8 @@ import { Calendar, Coins, Camera, Info, ArrowLeft } from 'lucide-react';
 import { getUserData, setUserData, getRedirectPath } from '@/lib/userState';
 import OutfitUploadInterface from '@/components/OutfitUploadInterface';
 import OutfitCalendarGenerator from '@/components/OutfitCalendarGenerator';
-// import calenderPc from '/public/CalenderPc.png'
-// import calenderMobile from '/public/CalenderMobile.png'
+import calenderPc from '/CalenderPc.png'
+import calenderMobile from '/CalenderMobile.png'
 import Image from 'next/image';
 import BottomNav from '@/components/male/BottomNavigation';
 import WalletButton from '@/components/WalletButton';
@@ -129,11 +129,15 @@ export default function CalendarPage() {
         <Image
           src="/CalenderPc.png"
           alt="AI-powered virtual try-on with digital mirror and styling interface"
+          width={1920}
+          height={1080}
           className="w-full h-full hidden md:block object-cover"
         />
         <Image
           src="/CalenderMobile.png"
           alt="AI-powered virtual try-on with digital mirror and styling interface"
+          width={768}
+          height={1024}
           className="w-full h-full md:hidden object-cover"
         />
         {/* Overlay for better text readability */}

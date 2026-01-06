@@ -618,7 +618,7 @@ export function RewardModal({
 
                 {/* CTA */}
                 <Button
-                  onClick={() => router.push("/virtual-tyon")}
+                  onClick={() => router.push("/calendar")}
                   className="w-full bg-stone-950 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-purple-500/40 transition-all"
                 >
                   Explore Premium Features
