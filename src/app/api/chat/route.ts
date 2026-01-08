@@ -74,8 +74,7 @@ export async function POST(req: Request) {
         const { message, history } = await req.json();
 
         // ✅ Correct env var
-        const rawApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-        const apiKey = rawApiKey ? rawApiKey.trim() : "";
+        const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
         if (!apiKey) {
             return NextResponse.json(
@@ -107,7 +106,7 @@ RULES:
 
         const model = genAI.getGenerativeModel({
             // ✅ Stable model (recommended)
-            model: "gemini-1.5-flash",
+            model: "gemini-flash-latest",
             systemInstruction: `
 Role: Aura, Auraasync stylist.
 Goal: Style advice, concise.
@@ -146,17 +145,9 @@ ${productContext}
             products: frontendProducts,
         });
     } catch (error: any) {
-        const debugKeyRaw = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-        const safeKey = debugKeyRaw ? `${debugKeyRaw.substring(0, 4)}...${debugKeyRaw.substring(debugKeyRaw.length - 4)} (len: ${debugKeyRaw.length})` : "missing";
-
         console.error("Error in chat API:", error);
         return NextResponse.json(
-            {
-                error: error.message || "Chat generation failed",
-                details: error.toString(),
-                debugKey: safeKey,
-                modelUsed: "gemini-flash-latest"
-            },
+            { error: "Chat generation failed" },
             { status: 500 }
         );
     }
