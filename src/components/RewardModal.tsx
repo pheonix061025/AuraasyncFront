@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   Coins,
@@ -43,6 +43,8 @@ export function RewardModal({
   const [userCoins, setUserCoins] = useState(userData?.points || 0);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isClaimingPoints, setIsClaimingPoints] = useState(false);
+  // Ref to prevent double-clicks (state update is async, ref is synchronous)
+  const isClaimingRef = useRef(false);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -248,9 +250,11 @@ export function RewardModal({
   };
 
   const handleClaimTask = async (task: Task) => {
-    if (!userData || !task.canClaim) return;
+    // Check both state and ref to ensure we block rapid clicks immediately
+    if (!userData || !task.canClaim || isClaimingPoints || isClaimingRef.current) return;
 
     setIsClaimingPoints(true);
+    isClaimingRef.current = true;
 
     try {
       // Map task.id to actionId
@@ -285,14 +289,7 @@ export function RewardModal({
         onPointsUpdate?.(pointsData.user);
       }
 
-      // If claiming daily login, update last_login_date in Supabase
-      if (task.id === "daily_login") {
-        const today = new Date().toISOString().split("T")[0];
-        await supabase
-          .from("user")
-          .update({ last_login_date: today })
-          .eq("user_id", userData.user_id);
-      }
+
 
       // Reload tasks to update canClaim status
       loadTasksData();
@@ -321,6 +318,7 @@ export function RewardModal({
       alert("Failed to claim points. Please try again.");
     } finally {
       setIsClaimingPoints(false);
+      isClaimingRef.current = false;
     }
   };
 
@@ -467,10 +465,10 @@ export function RewardModal({
                       <div
                         key={task.id}
                         className={`rounded-lg p-3 border transition-all duration-200 flex items-center justify-between group ${task.claimed
-                            ? "bg-green-500/10 border-green-500/30"
-                            : task.completed && task.canClaim
-                              ? "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20"
-                              : "bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer"
+                          ? "bg-green-500/10 border-green-500/30"
+                          : task.completed && task.canClaim
+                            ? "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20"
+                            : "bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer"
                           }`}
                         onClick={(e) => {
                           console.log(
@@ -489,10 +487,10 @@ export function RewardModal({
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div
                             className={`flex-shrink-0 ${task.claimed
-                                ? "text-green-400"
-                                : task.completed
-                                  ? "text-amber-400"
-                                  : "text-gray-400"
+                              ? "text-green-400"
+                              : task.completed
+                                ? "text-amber-400"
+                                : "text-gray-400"
                               }`}
                           >
                             {task.icon}
@@ -500,10 +498,10 @@ export function RewardModal({
                           <div className="flex-1 min-w-0">
                             <span
                               className={`text-sm block ${task.claimed
-                                  ? "text-green-300"
-                                  : task.completed
-                                    ? "text-gray-200"
-                                    : "text-gray-400"
+                                ? "text-green-300"
+                                : task.completed
+                                  ? "text-gray-200"
+                                  : "text-gray-400"
                                 }`}
                             >
                               {task.action}
