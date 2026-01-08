@@ -38,6 +38,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Server-side validation for DAILY_LOGIN
+    // Prevent duplicate claims using atomic UPDATE-If-Not-Today pattern
+    if (action === 'DAILY_LOGIN' || action === 'daily_login') {
+      const today = new Date().toISOString().split('T')[0];
+
+      // Attempt to update last_login_date ONLY if it is NOT today
+      // This atomic operation guarantees that only one request can succeed per day
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('user')
+        .update({ last_login_date: today })
+        .eq('user_id', parseInt(user_id))
+        .neq('last_login_date', today) // The atomic lock condition
+        .select();
+
+      if (updateError) {
+        console.error('Error locking daily login:', updateError);
+        return NextResponse.json({ error: 'Failed to process daily login' }, { status: 500 });
+      }
+
+      // If no rows were returned, it means the condition .neq('last_login_date', today) failed
+      // Therefore, the user has already logged in/claimed today.
+      if (!updatedUser || updatedUser.length === 0) {
+        console.warn(`Duplicate daily login attempt for user ${user_id} (Atomic Lock)`);
+        return NextResponse.json({ error: 'Daily login already claimed today' }, { status: 400 });
+      }
+    }
+
     // Create points transaction
     const { data: transaction, error: transactionError } = await supabase
       .from('points_transactions')
@@ -70,7 +97,7 @@ export async function POST(request: NextRequest) {
     // Update user points
     const { error: updateError } = await supabase
       .from('user')
-      .update({ 
+      .update({
         points: (currentUser?.points || 0) + parseInt(points),
         updated_at: new Date().toISOString()
       })
