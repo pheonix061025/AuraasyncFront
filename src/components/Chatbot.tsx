@@ -16,12 +16,13 @@ interface Message {
 }
 
 export default function Chatbot() {
-const [isOpen, setIsOpen] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isOnboardingComplete, setIsOnboardingComplete] = useState(false);
     // Coin deduction preview state
     const [coinCost, setCoinCost] = useState(0);
     const [coinType, setCoinType] = useState('Short');
@@ -60,14 +61,29 @@ const [isOpen, setIsOpen] = useState(false);
     };
 
     useEffect(() => {
+        const checkUserStatus = () => {
+            const localUser = getUserData();
+            setIsOnboardingComplete(!!localUser?.onboarding_completed);
+        };
+
+        // Check initially
+        checkUserStatus();
+
+        // Listen for storage changes in case onboarding completes in another tab/component
+        window.addEventListener('storage', checkUserStatus);
+
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setIsAuthenticated(!!user);
             if (user) {
                 const localUser = getUserData();
+                setIsOnboardingComplete(!!localUser?.onboarding_completed);
                 if (localUser?.user_id) fetchUserPoints(localUser.user_id);
             }
         });
-        return () => unsubscribe();
+        return () => {
+            unsubscribe();
+            window.removeEventListener('storage', checkUserStatus);
+        };
     }, []);
 
 
@@ -209,7 +225,7 @@ const [isOpen, setIsOpen] = useState(false);
         }
     };
 
-    if (!isAuthenticated) return null;
+    if (!isAuthenticated || !isOnboardingComplete) return null;
 
     return (
         <>
