@@ -118,34 +118,17 @@ export function RewardModal({
   const canClaimDailyLogin = (): boolean => {
     if (!userData?.last_login_date) return true;
 
-    const lastLogin = new Date(userData.last_login_date);
-    const now = new Date();
+    // Compare dates in ISO format (YYYY-MM-DD) to ensure we're checking the day, not the time
+    const today = new Date().toISOString().split('T')[0];
+    const lastLoginDate = userData.last_login_date.split('T')[0];
 
-    // Get dates at midnight
-    const lastLoginMidnight = new Date(
-      lastLogin.getFullYear(),
-      lastLogin.getMonth(),
-      lastLogin.getDate()
-    );
-    const nowMidnight = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    );
-
-    // Check if 24 hours have passed since last login
-    const hoursSinceLogin =
-      (now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60);
-
-    // Can claim if it's a new day (past midnight) and 24 hours have passed
-    return (
-      hoursSinceLogin >= 24 &&
-      lastLoginMidnight.getTime() < nowMidnight.getTime()
-    );
+    // Can only claim if last_login_date is NOT today
+    return lastLoginDate !== today;
   };
 
-  const loadTasksData = async () => {
-    if (!userData) return;
+  const loadTasksData = async (currentUserData?: any) => {
+    const userDataToUse = currentUserData || userData;
+    if (!userDataToUse) return;
 
     setLoading(true);
     try {
@@ -153,7 +136,7 @@ export function RewardModal({
       const { data: transactions, error } = await supabase
         .from("points_transactions")
         .select("*")
-        .eq("user_id", userData.user_id);
+        .eq("user_id", userDataToUse.user_id);
 
       const completedActions = new Set(
         transactions?.map((t) => t.action) || []
@@ -162,18 +145,15 @@ export function RewardModal({
         transactions?.filter((t) => t.points > 0).map((t) => t.action) || []
       );
 
-      // Check if daily login was claimed today
+      // Check if daily login was claimed today by checking last_login_date
       const today = new Date().toISOString().split("T")[0];
-      const dailyLoginClaimedToday =
-        transactions?.some(
-          (t) => t.action === "DAILY_LOGIN" && t.created_at?.startsWith(today)
-        ) || false;
+      const dailyLoginClaimedToday = userDataToUse?.last_login_date === today;
 
       // Check if user has submitted any reviews
       const { data: reviews, error: reviewError } = await supabase
         .from("reviews")
         .select("id")
-        .eq("user_id", userData.user_id)
+        .eq("user_id", userDataToUse.user_id)
         .limit(1);
 
       const hasSubmittedReview = !reviewError && reviews && reviews.length > 0;
@@ -184,10 +164,10 @@ export function RewardModal({
           action: "Signing up (onboarding)",
           points: 50,
           icon: <CheckCircle2 className="w-4 h-4" />,
-          completed: userData.onboarding_completed || false,
+          completed: userDataToUse.onboarding_completed || false,
           claimed: claimedActions.has("SIGNUP") || claimedActions.has("signup"),
           canClaim:
-            (userData.onboarding_completed || false) &&
+            (userDataToUse.onboarding_completed || false) &&
             !claimedActions.has("SIGNUP") &&
             !claimedActions.has("signup"),
         },
@@ -196,12 +176,12 @@ export function RewardModal({
           action: "Completing analysis",
           points: 50,
           icon: <Zap className="w-4 h-4" />,
-          completed: !!(userData.face_shape && userData.body_shape),
+          completed: !!(userDataToUse.face_shape && userDataToUse.body_shape),
           claimed:
             claimedActions.has("ANALYSIS_COMPLETE") ||
             claimedActions.has("analysis_complete"),
           canClaim:
-            !!(userData.face_shape && userData.body_shape) &&
+            !!(userDataToUse.face_shape && userDataToUse.body_shape) &&
             !claimedActions.has("ANALYSIS_COMPLETE") &&
             !claimedActions.has("analysis_complete"),
         },
@@ -219,11 +199,11 @@ export function RewardModal({
           action: "Referring a friend",
           points: 150,
           icon: <Users className="w-4 h-4" />,
-          completed: (userData.total_referrals || 0) > 0,
+          completed: (userDataToUse.total_referrals || 0) > 0,
           claimed:
             claimedActions.has("REFERRAL") || claimedActions.has("referral"),
           canClaim:
-            (userData.total_referrals || 0) > 0 &&
+            (userDataToUse.total_referrals || 0) > 0 &&
             !claimedActions.has("REFERRAL") &&
             !claimedActions.has("referral"),
         },
@@ -273,7 +253,7 @@ export function RewardModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: userData.user_id,
-          action: "award",
+          action: actionId,
           points: task.points,
           description: actionId,
         }),
@@ -283,16 +263,21 @@ export function RewardModal({
         throw new Error(errorData.error || "Failed to award points. Please try again.");
       }
       const pointsData = await pointsRes.json();
+      
       // Update user points locally
+      let updatedUserData = userData;
       if (pointsData.user) {
         setUserCoins(pointsData.user.points || 0);
-        onPointsUpdate?.(pointsData.user);
+        // Update userData with fresh data from API (includes last_login_date)
+        updatedUserData = {
+          ...userData,
+          ...pointsData.user
+        };
+        onPointsUpdate?.(updatedUserData);
       }
 
-
-
-      // Reload tasks to update canClaim status
-      loadTasksData();
+      // Reload tasks with updated user data to update canClaim status
+      loadTasksData(updatedUserData);
 
       // Play coin sound when claim button is clicked
       if (typeof window !== "undefined") {
