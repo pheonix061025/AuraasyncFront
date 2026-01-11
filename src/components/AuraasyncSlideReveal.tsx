@@ -60,15 +60,15 @@ export default function AuraasyncSlideReveal() {
 
     // Check on mount
     handleReload();
-    
+
     // Also check after a short delay to ensure DOM is ready
     setTimeout(handleReload, 100);
     setTimeout(handleReload, 500);
     setTimeout(handleReload, 1000);
-    
+
     window.addEventListener('load', handleReload);
     window.addEventListener('DOMContentLoaded', handleReload);
-    
+
     return () => {
       window.removeEventListener('load', handleReload);
       window.removeEventListener('DOMContentLoaded', handleReload);
@@ -88,7 +88,7 @@ export default function AuraasyncSlideReveal() {
     <div className={`relative w-full h-screen overflow-hidden ${loading ? "bg-white" : "bg-black"} transition-colors duration-500`}>
       {/* Sticky Header - Always visible after landing animation */}
       {showContent && <StickyHeader />}
-      
+
       {/* Navbar - Always visible after landing animation */}
       {showContent && <Navbar />}
 
@@ -97,7 +97,7 @@ export default function AuraasyncSlideReveal() {
         {loading && (
           <motion.div
             key="loader"
-            className="fixed inset-0 z-50 px-22 md:px-0 flex flex-col items-center justify-center bg-[#2a2a33]"
+            className="fixed w-full  inset-0 z-50 px-22 md:px-0 flex flex-col items-center justify-center bg-[#2a2a33]"
             exit={{ opacity: 0, transition: { duration: 0.9 } }}
           >
             <motion.h1
@@ -110,19 +110,28 @@ export default function AuraasyncSlideReveal() {
               Auraasync
             </motion.h1>
             <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 380, opacity: 1 }}
+              // initial={{ scaleX: 0, opacity: 0 }}
+              // animate={{ scaleX: 1, opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.5 }}
-              className="relative h-1 md:h-2 bg-gray-300  rounded-full overflow-hidden"
+              style={{ transformOrigin: "left" }}
+              className="
+    relative 
+    h-2 md:h-2 
+    bg-gray-300 
+    w-[220px] sm:w-[280px] md:w-[620px] 
+    rounded-full 
+    overflow-hidden
+  "
             >
               <div
-                className="h-full  transition-all ease-linear"
-                style={{ 
+                className="h-full transition-all ease-linear"
+                style={{
                   width: `${progress}%`,
-                  backgroundColor: '#af956a'
+                  backgroundColor: "#af956a",
                 }}
               />
             </motion.div>
+
           </motion.div>
         )}
       </AnimatePresence>
@@ -194,9 +203,9 @@ export default function AuraasyncSlideReveal() {
             <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-pink-500"><FaInstagram /></a>
             {/* <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500"><FaFacebookF /></a> */}
             {/* <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="hover:text-sky-400"><FaTwitter /></a> */}
-          <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400" > <FaLinkedinIn />
-  </a>
-  {/* <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="hover:text-red-500" >
+            <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400" > <FaLinkedinIn />
+            </a>
+            {/* <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="hover:text-red-500" >
     <FaYoutube />
   </a> */}
           </div>

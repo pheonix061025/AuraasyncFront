@@ -588,8 +588,9 @@ user_id: backendUserData.user_id || undefined,
 
       {/* RIGHT – IMAGE */}
       <div className="w-1/2 relative overflow-hidden">
-        <img
-          src="/LoginPage.png"
+        <Image
+          fill
+          src="/LoginPage.svg"
           alt="Fashion"
           className="absolute inset-0 w-full h-full object-cover"
         />
@@ -605,8 +606,9 @@ user_id: backendUserData.user_id || undefined,
         >
           {/* Full Screen Background Image */}
           <div className="absolute inset-0">
-            <img
-              src="/LoginPage.png"
+            <Image
+          fill
+              src="/LoginPage.svg"
               alt="Fashion"
               className="w-full h-full object-cover"
             />
